@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>主播模拟器 - Streamer Simulator</title>
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Spline+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+  <!-- Material Symbols -->
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "primary": "#f49d25",
+            "primary-dark": "#d68315",
+            "background-light": "#f8f7f5",
+            "background-dark": "#221a10",
+            "accent-yellow": "#fceeb5",
+            "tiktok-bg": "#121212",
+            "tiktok-card": "#1e1e1e",
+            "tiktok-pink": "#fe2c55",
+            "tiktok-cyan": "#25f4ee",
+            "tiktok-gray": "#2f2f2f",
+            "tiktok-text-muted": "#8a8b91",
+            "stream-primary": "#f4258c",
+            "stream-bg": "#221019",
+            "stream-accent": "#492236",
+            "stream-light": "#cb90ad",
+            "victory-primary": "#8c25f4",
+            "victory-bg": "#191022",
+            "gameover-primary": "#ee5b2b",
+            "gameover-bg": "#221510",
+          },
+          fontFamily: {
+            "display": ["Plus Jakarta Sans", "Noto Sans SC", "sans-serif"],
+            "stream": ["Spline Sans", "Noto Sans SC", "sans-serif"],
+            "victory": ["Space Grotesk", "Noto Sans SC", "sans-serif"],
+          },
+          borderRadius: {
+            "DEFAULT": "1rem",
+            "lg": "2rem",
+            "xl": "3rem",
+            "2xl": "4rem",
+            "full": "9999px"
+          },
+          boxShadow: {
+            "glow": "0 0 20px rgba(244, 157, 37, 0.5)",
+            "glass": "0 8px 32px 0 rgba(31, 38, 135, 0.07)",
+            "neon-pink": "0 0 10px rgba(244, 37, 140, 0.5), 0 0 20px rgba(244, 37, 140, 0.3)",
+            "neon-blue": "0 0 10px rgba(0, 240, 255, 0.5), 0 0 20px rgba(0, 240, 255, 0.3)",
+          },
+          keyframes: {
+            shine: {
+              '0%': { transform: 'translateX(-100%)' },
+              '100%': { transform: 'translateX(100%)' },
+            },
+            fadeInDown: {
+              from: { opacity: '0', transform: 'translateY(-20px)' },
+              to: { opacity: '1', transform: 'translateY(0)' },
+            },
+            fadeInUp: {
+              from: { opacity: '0', transform: 'translateY(20px)' },
+              to: { opacity: '1', transform: 'translateY(0)' },
+            },
+            fadeInLeft: {
+              from: { opacity: '0', transform: 'translateX(-30px)' },
+              to: { opacity: '1', transform: 'translateX(0)' },
+            },
+            fadeInRight: {
+              from: { opacity: '0', transform: 'translateX(30px)' },
+              to: { opacity: '1', transform: 'translateX(0)' },
+            },
+            fadeIn: {
+              from: { opacity: '0' },
+              to: { opacity: '1' },
+            },
+            scaleIn: {
+              from: { opacity: '0', transform: 'scale(0.8)' },
+              to: { opacity: '1', transform: 'scale(1)' },
+            },
+            slideUp: {
+              from: { transform: 'translateY(100%)' },
+              to: { transform: 'translateY(0)' },
+            },
+            danmaku: {
+              from: { transform: 'translateX(100vw)' },
+              to: { transform: 'translateX(-100%)' },
+            },
+            drift: {
+              '0%': { transform: 'translateX(100%)', opacity: '0' },
+              '10%': { opacity: '1' },
+              '90%': { opacity: '1' },
+              '100%': { transform: 'translateX(-150%)', opacity: '0' },
+            },
+            float: {
+              '0%, 100%': { transform: 'translateY(0)' },
+              '50%': { transform: 'translateY(-10px)' },
+            },
+            pulseFast: {
+              '0%, 100%': { opacity: '1' },
+              '50%': { opacity: '0.5' },
+            },
+            shimmer: {
+              '100%': { transform: 'translateX(100%)' },
+            },
+            scrollCredits: {
+              from: { transform: 'translateY(0)' },
+              to: { transform: 'translateY(-100%)' },
+            },
+          },
+          animation: {
+            'shine': 'shine 1.5s infinite',
+            'fade-in-down': 'fadeInDown 0.6s ease-out forwards',
+            'fade-in-up': 'fadeInUp 0.6s ease-out forwards',
+            'fade-in-left': 'fadeInLeft 0.8s ease-out forwards',
+            'fade-in-right': 'fadeInRight 0.8s ease-out forwards',
+            'fade-in': 'fadeIn 0.5s ease-out forwards',
+            'scale-in': 'scaleIn 0.4s ease-out forwards',
+            'slide-up': 'slideUp 0.5s ease-out forwards',
+            'float': 'float 3s ease-in-out infinite',
+            'pulse-fast': 'pulseFast 1s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            'drift-1': 'drift 8s linear infinite',
+            'drift-2': 'drift 10s linear infinite',
+            'drift-3': 'drift 12s linear infinite',
+            'scroll-credits': 'scrollCredits 30s linear forwards',
+          },
+        },
+      },
+    }
+  </script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #0a0a15;
+      font-family: "Plus Jakarta Sans", "Noto Sans SC", sans-serif;
+    }
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    }
+    .material-symbols-outlined.filled {
+      font-variation-settings: 'FILL' 1, 'wght' 700, 'GRAD' 0, 'opsz' 48;
+    }
+    #game-container {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+    #ui-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 10;
+      pointer-events: auto;
+    }
+    #pixi-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 5;
+      pointer-events: none;
+    }
+    .glass-panel {
+      background: rgba(255, 255, 255, 0.75);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.5);
+    }
+    .glass-panel-dark {
+      background: rgba(34, 26, 16, 0.75);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .glass-panel-stream {
+      background: rgba(35, 16, 26, 0.6);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .anime-button-gradient {
+      background: linear-gradient(135deg, #f49d25 0%, #ffb95e 100%);
+    }
+    .anime-button-gradient:hover {
+      background: linear-gradient(135deg, #ffb95e 0%, #f49d25 100%);
+      transform: scale(1.05);
+    }
+    .sunbeam-overlay {
+      background: linear-gradient(115deg, rgba(255,255,255,0) 40%, rgba(255,248,220,0.3) 50%, rgba(255,255,255,0) 60%);
+      pointer-events: none;
+    }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .cartoon-shadow { box-shadow: 8px 8px 0px 0px rgba(0, 0, 0, 0.5); }
+    .text-glow { text-shadow: 0 0 20px rgba(140, 37, 244, 0.6); }
+    .box-glow { box-shadow: 0 0 40px rgba(140, 37, 244, 0.15); }
+    .text-shadow-neon { text-shadow: 2px 2px 0px #FE2C55, -2px -2px 0px #25F4EE; }
+    .stat-ring circle {
+      transition: stroke-dashoffset 0.35s;
+      transform: rotate(-90deg);
+      transform-origin: 50% 50%;
+    }
+    .scene-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+    /* Loading */
+    .loading {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: #f49d25;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 18px;
+      text-align: center;
+    }
+    .loading::after {
+      content: '';
+      animation: dots 1.5s infinite;
+    }
+    @keyframes dots {
+      0%, 20% { content: ''; }
+      40% { content: '.'; }
+      60% { content: '..'; }
+      80%, 100% { content: '...'; }
+    }
+    /* Danmaku */
+    .danmaku-item {
+      position: absolute;
+      white-space: nowrap;
+      font-weight: bold;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+      pointer-events: none;
+      animation: danmaku linear forwards;
+    }
+    /* PK Bar Transition */
+    .pk-bar-transition {
+      transition: width 0.5s ease-out;
+    }
+    /* Confetti */
+    .confetti-piece {
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      opacity: 0;
+      animation: confettiFall 3s ease-in forwards;
+    }
+    @keyframes confettiFall {
+      0% { opacity: 1; transform: translateY(-100px) rotate(0deg); }
+      100% { opacity: 0; transform: translateY(100vh) rotate(720deg); }
+    }
+    /* Sunburst animation */
+    .sunburst {
+      background: conic-gradient(
+        from 0deg at 50% 50%,
+        rgba(244, 37, 140, 0) 0deg, rgba(244, 37, 140, 0.1) 15deg,
+        rgba(244, 37, 140, 0) 30deg, rgba(244, 37, 140, 0.1) 45deg,
+        rgba(244, 37, 140, 0) 60deg, rgba(244, 37, 140, 0.1) 75deg,
+        rgba(244, 37, 140, 0) 90deg, rgba(244, 37, 140, 0.1) 105deg,
+        rgba(244, 37, 140, 0) 120deg, rgba(244, 37, 140, 0.1) 135deg,
+        rgba(244, 37, 140, 0) 150deg, rgba(244, 37, 140, 0.1) 165deg,
+        rgba(244, 37, 140, 0) 180deg, rgba(244, 37, 140, 0.1) 195deg,
+        rgba(244, 37, 140, 0) 210deg, rgba(244, 37, 140, 0.1) 225deg,
+        rgba(244, 37, 140, 0) 240deg, rgba(244, 37, 140, 0.1) 255deg,
+        rgba(244, 37, 140, 0) 270deg, rgba(244, 37, 140, 0.1) 285deg,
+        rgba(244, 37, 140, 0) 300deg, rgba(244, 37, 140, 0.1) 315deg,
+        rgba(244, 37, 140, 0) 330deg, rgba(244, 37, 140, 0.1) 345deg,
+        rgba(244, 37, 140, 0) 360deg
+      );
+      animation: spin 20s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes toastSlideIn {
+      from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+      to { opacity: 1; transform: translateX(-50%) translateY(0); }
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <div id="pixi-container" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; pointer-events: none;"></div>
+    <div id="ui-container" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: auto;">
+      <div class="loading">加载中</div>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
