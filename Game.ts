@@ -9,7 +9,6 @@ import { AIService } from '../services/AIService';
 import { EventPool } from '../systems/EventPool';
 import * as DefaultContent from '../services/DefaultContent';
 import { DIMENSIONS, SKILL_NODES, type SkillNode, type SkillDimension } from './SkillTreeConfig';
-import skillTreeBgUrl from '/skill-tree-bg.png';
 
 export class Game {
   public app: Application;
@@ -926,6 +925,7 @@ export class Game {
     };
 
     const getDimNodes = (dimId: string) => SKILL_NODES.filter(n => n.dimensionId === dimId);
+
     const eloquenceNodes = getDimNodes('eloquence');
     const appearanceNodes = getDimNodes('appearance');
     const talentNodes = getDimNodes('talent');
@@ -935,10 +935,11 @@ export class Game {
       const status = getNodeStatus(node);
       const dim = DIMENSIONS.find(d => d.id === node.dimensionId);
       const color = dim?.color ?? '#ccc';
-      return '<div class="st-hotspot st-hotspot-' + status + '" data-id="' + node.id + '" style="left:' + pctX + '%;top:' + pctY + '%;width:' + size + 'vh;height:' + size + 'vh;--hc:' + color + ';" title="' + node.name + '">' +
+      return '<div class="st-hotspot st-hotspot-' + status + '" data-id="' + node.id + '" style="left:' + pctX + '%;top:' + pctY + '%;width:' + size + 'vh;height:' + size + 'vh;--hc:' + color + ';' + '" title="' + node.name + '">' +
         '<span class="st-hs-icon">' + node.icon + '</span>' +
         (status === 'unlocked' ? '<span class="st-hs-check">✓</span>' : '') +
-        '<span class="st-hs-ring"></span></div>';
+        '<span class="st-hs-ring"></span>' +
+      '</div>';
     };
 
     const html = `
@@ -947,105 +948,164 @@ export class Game {
           .skill-tree-page{width:100vw;height:100vh;overflow:hidden;position:relative;background:#ffeef2;}
           .st-bg-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;}
           .st-overlay{position:absolute;inset:0;z-index:5;}
+          /* 热区基础样式 */
           .st-hotspot{position:absolute;border-radius:14px;display:flex;align-items:center;justify-content:center;
             cursor:pointer;transform:translate(-50%,-50%);transition:all .25s ease;z-index:6;
-            background:rgba(255,255,255,0.1);border:2.5px solid rgba(255,255,255,0.4);backdrop-filter:blur(3px);}
-          .st-hotspot:hover{background:rgba(255,255,255,0.4);transform:translate(-50%,-50%) scale(1.22);z-index:20;
-            border-color:var(--hc);box-shadow:0 0 24px var(--hc)50,0 6px 20px rgba(0,0,0,0.15);}
-          .st-hotspot.locked{opacity:0.3;filter:grayscale(0.7);cursor:not-allowed;}
-          .st-hotspot.available{animation:hsPulse 2s ease-in-out infinite;border-style:dashed;border-width:2px;}
-          .st-hotspot.unlocked{border-color:var(--hc);border-width:2.5px;background:rgba(255,255,255,0.25);
-            box-shadow:0 0 14px var(--hc)45;}
-          .st-hs-icon{font-size:clamp(18px,2.5vh,34px);line-height:1;user-select:none;pointer-events:none;
-            filter:drop-shadow(0 2px 3px rgba(0,0,0,0.25));}
-          .st-hs-check{position:absolute;top:-5px;right:-5px;width:20px;height:20px;border-radius:50%;
-            background:linear-gradient(135deg,#4ade80,#22c55e);color:#fff;font-size:11px;display:flex;
-            align-items:center;justify-content:center;font-weight:900;border:2. solid #fff;
-            box-shadow:0 2px 8px rgba(0,0,0,0.2);z-index:7;}
-          .st-hs-ring{position:absolute;inset:-5px;border-radius:18px;border:2px solid transparent;
+            background:rgba(255,255,255,0.08);border:2px solid rgba(255,255,255,0.25);
+            backdrop-filter:blur(2px);}
+          .st-hotspot:hover{background:rgba(255,255,255,0.35);transform:translate(-50%,-50%) scale(1.2);z-index:20;
+            border-color:var(--hc);box-shadow:0 0 20px var(--hc)50,0 4px 16px rgba(0,0,0,0.15);}
+          .st-hotspot.locked{opacity:0.25;filter:grayscale(0.7);cursor:not-allowed;}
+          .st-hotspot.available{animation:hsPulse 2s ease-in-out infinite;border-style:dashed;}
+          .st-hotspot.unlocked{border-color:var(--hc);border-width:2.5px;background:rgba(255,255,255,0.22);
+            box-shadow:0 0 12px var(--hc)40;}
+          .st-hs-icon{font-size:clamp(16px,2.2vh,30px);line-height:1;user-select:none;pointer-events:none;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.2));}
+          .st-hs-check{position:absolute;top:-4px;right:-4px;width:18px;height:18px;border-radius:50%;
+            background:#4ade80;color:#fff;font-size:10px;display:flex;align-items:center;justify-content:center;
+            font-weight:900;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.2);z-index:7;}
+          .st-hs-ring{position:absolute;inset:-4px;border-radius:16px;border:2px solid transparent;
             pointer-events:none;transition:border-color .3s;}
-          .st-hotspot:hover .st-hs-ring{border-color:var(--hc)70;}
-          @keyframes hsPulse{0%,100%{box-shadow:0 0 0 0 var(--hc)35;}50%{box-shadow:0 0 0 7px var(--hc)18,0 0 20px var(--hc)25;}}
+          .st-hotspot:hover .st-hs-ring{border-color:var(--hc)60;}
+          @keyframes hsPulse{0%,100%{box-shadow:0 0 0 0 var(--hc)30;}50%{box-shadow:0 0 0 6px var(--hc)15,0 0 16px var(--hc)20;}}
+          /* 六边形入口卡片热区 */
           .st-hex-hs{position:absolute;transform:translate(-50%,-50%);cursor:pointer;z-index:8;
-            border-radius:26px;transition:all .3s ease;background:rgba(255,255,255,0.06);border:2px dashed rgba(255,255,255,0.3);}
-          .st-hex-hs:hover{background:rgba(255,255,255,0.2);transform:translate(-50%,-50%) scale(1.08);
-            box-shadow:0 0 36px rgba(255,105,180,0.5),0 8px 32px rgba(0,0,0,0.18);}
-          .st-hex-hs-left{left:21%;top:17%;width:10vh;height:11vh;}
-          .st-hex-hs-center{left:50%;top:19%;transform:translate(-50%,-50%);width:11.5vh;height:12.5vh;
-            border-color:rgba(255,105,180,0.45);border-width:2.5px;}
-          .st-hex-hs-right{right:21%;top:17%;width:10vh;height:11vh;
-            border-color:rgba(135,206,235,0.35);}
+            border-radius:24px;transition:all .3s ease;}
+          .st-hex-hs:hover{transform:translate(-50%,-50%) scale(1.06);
+            box-shadow:0 0 30px rgba(255,105,180,0.4),0 8px 32px rgba(0,0,0,0.15);}
+          .st-hex-hs-left{left:21%;top:17%;width:9vh;height:10vh;
+            background:rgba(255,105,180,0.06);border:2px dashed rgba(255,105,180,0.35);}
+          .st-hex-hs-center{left:50%;top:19%;transform:translate(-50%,-50%);width:10.5vh;height:11.5vh;
+            background:rgba(255,105,180,0.1);border:2.5px dashed rgba(255,105,180,0.45);}
+          .st-hex-hs-right{right:21%;top:17%;width:9vh;height:10vh;
+            background:rgba(135,206,235,0.06);border:2px dashed rgba(135,206,235,0.35);}
+          /* 技能点热区 */
           .st-points-hs{position:absolute;left:50%;top:27%;transform:translateX(-50%);
-            width:15vh;height:4.5vh;border-radius:18px;cursor:default;z-index:7;
-            background:rgba(255,133,162,0.08);border:2px dashed rgba(255,133,162,0.28);}
+            width:14vh;height:4vh;border-radius:16px;cursor:default;z-index:7;
+            background:rgba(255,133,162,0.08);border:2px dashed rgba(255,133,162,0.25);}
+          /* 底部按钮热区 */
           .st-btn-hs{position:absolute;cursor:pointer;z-index:8;border-radius:50%;
-            transition:all .2s ease;border:2.5px dashed rgba(168,208,234,0.35);
-            background:rgba(232,244,252,0.1);}
-          .st-btn-hs:hover{background:rgba(232,244,252,0.4);transform:scale(1.18);
-            border-color:rgba(168,208,234,0.65);box-shadow:0 0 14px rgba(168,208,234,0.35);}
-          .st-finish-hs{position:absolute;bottom:5.5%;right:6%;padding:1.4vh 3.5vh;border-radius:24px;
-            cursor:pointer;z-index:8;background:rgba(255,107,157,0.12);border:2.5px dashed rgba(255,107,157,0.4);
-            transition:all .2s ease;color:transparent;font-size:0;line-height:0;overflow:hidden;}
-          .st-finish-hs:hover{background:rgba(255,107,157,0.35);transform:scale(1.04);
-            box-shadow:0 0 24px rgba(255,107,157,0.35);}
-          .st-close-hs{position:absolute;top:2%;right:1.2%;width:3.5vh;height:3.5vh;border-radius:50%;
-            cursor:pointer;z-index:10;background:rgba(232,74,127,0.1);border:2.5px dashed rgba(232,74,127,0.3);
+            transition:all .2s ease;border:2px dashed rgba(168,208,234,0.3);
+            background:rgba(232,244,252,0.08);}
+          .st-btn-hs:hover{background:rgba(232,244,252,0.35);transform:scale(1.15);
+            border-color:rgba(168,208,234,0.6);box-shadow:0 0 12px rgba(168,208,234,0.3);}
+          .st-finish-hs{position:absolute;bottom:5.5%;right:6%;padding:1.2vh 3vh;border-radius:22px;
+            cursor:pointer;z-index:8;background:rgba(255,107,157,0.1);border:2px dashed rgba(255,107,157,0.35);
+            transition:all .2s ease;color:transparent;font-size:0;}
+          .st-finish-hs:hover{background:rgba(255,107,157,0.3);transform:scale(1.04);
+            box-shadow:0 0 20px rgba(255,107,157,0.3);}
+          .st-close-hs{position:absolute;top:2.2%;right:1.5%;width:3vh;height:3vh;border-radius:50%;
+            cursor:pointer;z-index:10;background:rgba(232,74,127,0.08);border:2px dashed rgba(232,74,127,0.25);
             transition:all .2s;}
-          .st-close-hs:hover{background:rgba(232,74,127,0.4);transform:scale(1.15);}
-          #st-node-modal{position:fixed;inset:0;background:rgba(0,0,0,0.5);backdrop-filter:blur(8px);
+          .st-close-hs:hover{background:rgba(232,74,127,0.35);transform:scale(1.1);}
+          /* 弹窗 */
+          #st-node-modal{position:fixed;inset:0;background:rgba(0,0,0,0.45);backdrop-filter:blur(6px);
             display:flex;align-items:center;justify-content:center;z-index:9999;}
           #st-node-modal.hidden{display:none;}
-          .st-modal-card{background:#fff;border-radius:24px;padding:28px 32px;max-width:380px;width:88%;
-            box-shadow:0 28px 72px rgba(0,0,0,0.25);text-align:center;position:relative;
+          .st-modal-card{background:#fff;border-radius:22px;padding:26px 30px;max-width:370px;width:88%;
+            box-shadow:0 24px 64px rgba(0,0,0,0.22);text-align:center;position:relative;
             animation:mPop .35s cubic-bezier(.34,1.56,.64,1);border:3px solid;}
-          @keyframes mPop{from{opacity:0;transform:scale(0.82) translateY(24px);}to{opacity:1;transform:scale(1) translateY(0);}}
-          .st-modal-icon{font-size:3.6rem;margin-bottom:14px;}
-          .st-modal-name{font-size:1.4rem;font-weight:900;margin-bottom:6px;}
-          .st-modal-desc{font-size:0.86rem;color:#666;line-height:1.58;margin-bottom:16px;}
-          .st-modal-prereqs{font-size:0.78rem;color:#777;margin-bottom:16px;padding:12px 14px;
-            background:#fafafa;border-radius:14px;text-align:left;display:none;}
-          .st-modal-prereqs .prq-title{font-weight:800;margin-bottom:6px;color:#555;}
-          .st-modal-cost{display:inline-block;padding:7px 20px;border-radius:14px;font-weight:800;
-            font-size:0.9rem;margin-bottom:18px;}
+          @keyframes mPop{from{opacity:0;transform:scale(0.85) translateY(20px);}to{opacity:1;transform:scale(1) translateY(0);}}
+          .st-modal-icon{font-size:3.4rem;margin-bottom:12px;}
+          .st-modal-name{font-size:1.35rem;font-weight:900;margin-bottom:4px;}
+          .st-modal-desc{font-size:0.84rem;color:#666;line-height:1.55;margin-bottom:14px;}
+          .st-modal-prereqs{font-size:0.76rem;color:#777;margin-bottom:14px;padding:10px 12px;
+            background:#fafafa;border-radius:12px;text-align:left;display:none;}
+          .st-modal-prereqs .prq-title{font-weight:800;margin-bottom:5px;color:#555;}
+          .st-modal-cost{display:inline-block;padding:6px 18px;border-radius:13px;font-weight:800;
+            font-size:0.88rem;margin-bottom:16px;}
           .st-modal-cost.can-afford{background:#fef3c7;color:#b45309;}
           .st-modal-cost.cannot-afford{background:#fee2e2;color:#dc2626;}
-          .st-modal-btn{padding:11px 38px;border-radius:22px;border:none;font-weight:800;font-size:0.95rem;
+          .st-modal-btn{padding:10px 36px;border-radius:20px;border:none;font-weight:800;font-size:0.92rem;
             cursor:pointer;transition:all .2s;}
           .st-modal-btn.unlock{background:linear-gradient(135deg,#ff6b9d,#ff8fab);color:#fff;
-            box-shadow:0 5px 16px rgba(255,107,157,0.4);}
-          .st-modal-btn.unlock:hover{transform:scale(1.05);}
+            box-shadow:0 4px 14px rgba(255,107,157,0.35);}
+          .st-modal-btn.unlock:hover{transform:scale(1.04);}
           .st-modal-btn.locked-btn{background:#f3f4f6;color:#9ca3af;cursor:not-allowed;}
-          .st-modal-close{position:absolute;top:11px;right:16px;width:30px;height:30px;border-radius:50%;
-            border:none;background:#f3f4f6;color:#999;font-size:1.1rem;cursor:pointer;
+          .st-modal-close{position:absolute;top:10px;right:14px;width:28px;height:28px;border-radius:50%;
+            border:none;background:#f3f4f6;color:#999;font-size:1.05rem;cursor:pointer;
             display:flex;align-items:center;justify-content:center;transition:all .15s;}
           .st-modal-close:hover{background:#e5e7eb;color:#555;}
           @keyframes celePop{from{opacity:0;transform:scale(0.5);}to{opacity:1;transform:scale(1);}}
-          @keyframes celeFadeOut{0%{opacity:1;}75%{opacity:1;}100%{opacity:0;}}
+          @keyframes celeFadeOut{0%{opacity:1;}70%{opacity:1;}100%{opacity:0;}}
           @media(max-width:768px){
-            .st-hotspot{width:7vw!important;height:7vw!important;}
-            .st-hs-icon{font-size:clamp(15px,4vw,26px)!important;}
-            .st-hex-hs{width:12vw!important;height:13vw!important;}
-            .st-hex-hs-center{width:14vw!important;height:15vw!important;}
+            .st-hotspot{width:6vw!important;height:6vw!important;}
+            .st-hs-icon{font-size:clamp(14px,3.5vw,22px)!important;}
+            .st-hex-hs{width:10vw!important;height:11vw!important;}
+            .st-hex-hs-center{width:12vw!important;height:13vw!important;}
           }
         </style>
-        <img class="st-bg-img" src="${skillTreeBgUrl}" alt="技能树" draggable="false" />
+
+        <!-- 图片底图 -->
+        <img class="st-bg-img" src="/skill-tree-bg.png" alt="技能树" draggable="false" />
+
+        <!-- 交互热区层 -->
         <div class="st-overlay" id="st-overlay">
+
+          <!-- 关闭按钮热区 -->
           <div class="st-close-hs" id="btn-st-close" title="关闭"></div>
+
+          <!-- 上方三个六边形入口卡片热区 -->
           <div class="st-hex-hs st-hex-hs-left" id="hex-eloquence" title="口才维度 · 嘴炮输出营"></div>
           <div class="st-hex-hs st-hex-hs-center" id="hex-center" title="主播 · Lv.${state.level}"></div>
           <div class="st-hex-hs st-hex-hs-right" id="hex-appearance" title="外貌维度 · 颜值buff馆"></div>
+
+          <!-- 技能点计数器热区 -->
           <div class="st-points-hs" title="技能点: ${skillPoints}"></div>
-          <div class="st-branch" data-dim="eloquence">${eloquenceNodes.map((n,i)=>{const t=n.tier-1;const tn=eloquenceNodes.filter(x=>x.tier===n.tier);const ri=tn.indexOf(n);const xMap=[[8,17,26],[9,18,28],[9,18,28],[13,23]];const yBase=[44,57,69,82][t];const x=(xMap[t]||[10])[Math.min(ri,(xMap[t]||[10]).length-1)]+(i*0.8);const y=yBase+(ri>=3?5:0)+(t===3&&ri>=1?3:0);const sz=[5.4,5.8,6.4][t]||5.4;return makeHotspot(n,x,y,sz)}).join('')}</div>
-          <div class="st-branch" data-dim="knowledge">${knowledgeNodes.map((n,i)=>{const t=n.tier-1;const tn=knowledgeNodes.filter(x=>x.tier===n.tier);const ri=tn.indexOf(n);const x=47+(tn.length>1?ri*11:11);const y=44+t*13+(ri>=3?5:0);const sz=[5.4,5.8,6.4][t]||5.4;return makeHotspot(n,x,y,sz)}).join('')}</div>
-          <div class="st-branch" data-dim="talent">${talentNodes.map((n,i)=>{const t=n.tier-1;const tn=talentNodes.filter(x=>x.tier===n.tier);const ri=tn.indexOf(n);const x=79+(tn.length>1?ri*10:0);const y=46+t*14+(ri>=3?5:0);const sz=[5.4,5.8,6.4][t]||5.4;return makeHotspot(n,x,y,sz)}).join('')}</div>
-          <div class="st-branch" data-dim="appearance">${appearanceNodes.map((n,i)=>{const t=n.tier-1;const tn=appearanceNodes.filter(x=>x.tier===n.tier);const ri=tn.indexOf(n);const x=63+(tn.length>1?ri*10:0);const y=48+t*13+(ri>=2?5:0);const sz=[5.4,5.8,6.4][t]||5.4;return makeHotspot(n,x,y,sz)}).join('')}</div>
-          <div class="st-btn-hs" style="left:73%;bottom:3.8%;width:3.8vh;height:3.8vh;" title="点赞">❤️</div>
-          <div class="st-btn-hs" style="left:78.5%;bottom:3.8%;width:3.8vh;height:3.8vh;" title="分享">↗️</div>
-          <div class="st-btn-hs" style="left:84%;bottom:3.8%;width:3.8vh;height:3.8vh;" title="水滴">💧</div>
-          <div class="st-btn-hs" style="left:89.5%;bottom:3.8%;width:3.8vh;height:3.8vh;" title="定位">📍</div>
-          <div class="st-btn-hs" style="left:95%;bottom:3.8%;width:3.8vh;height:3.8vh;" title="设置">⚙️</div>
+
+          <!-- ===== 左下：口才维度节点热区（粉红区域）===== -->
+          <div class="st-branch" data-dim="eloquence">
+            ${eloquenceNodes.map((n,i) => {
+              const t=n.tier-1; const tierNodes=eloquenceNodes.filter(x=>x.tier===n.tier); const ri=tierNodes.indexOf(n);
+              const xMap=[[8,16,24],[8,17,26],[8,17,26],[12,22]];
+              const yBase=[44,56,68,81][t]; const x=(xMap[t]||[10])[Math.min(ri,(xMap[t]||[10]).length-1)]+(i*0.8);
+              const y=yBase+(ri>=3?5:0)+(t===3&&ri>=1?3:0);
+              const sz = [5.2,5.6,6.2][t]||5.2;
+              return makeHotspot(n,x,y,sz);
+            }).join('')}
+          </div>
+
+          <!-- ===== 中右：知识维度节点热区（蓝紫区域）===== -->
+          <div class="st-branch" data-dim="knowledge">
+            ${knowledgeNodes.map((n,i) => {
+              const t=n.tier-1; const tn=knowledgeNodes.filter(x=>x.tier===n.tier); const ri=tn.indexOf(n);
+              const x=47+(tn.length>1?ri*11:11); const y=44+t*13+(ri>=3?5:0);
+              const sz=[5.2,5.6,6.2][t]||5.2;
+              return makeHotspot(n,x,y,sz);
+            }).join('')}
+          </div>
+
+          <!-- ===== 右侧：才艺维度节点热区（紫色区域）===== -->
+          <div class="st-branch" data-dim="talent">
+            ${talentNodes.map((n,i) => {
+              const t=n.tier-1; const tn=talentNodes.filter(x=>x.tier===n.tier); const ri=tn.indexOf(n);
+              const x=79+(tn.length>1?ri*10:0); const y=46+t*14+(ri>=3?5:0);
+              const sz=[5.2,5.6,6.2][t]||5.2;
+              return makeHotspot(n,x,y,sz);
+            }).join('')}
+          </div>
+
+          <!-- ===== 中偏右：外貌维度节点热区（橙粉区域）===== -->
+          <div class="st-branch" data-dim="appearance">
+            ${appearanceNodes.map((n,i) => {
+              const t=n.tier-1; const tn=appearanceNodes.filter(x=>x.tier===n.tier); const ri=tn.indexOf(n);
+              const x=63+(tn.length>1?ri*10:0); const y=48+t*13+(ri>=2?5:0);
+              const sz=[5.2,5.6,6.2][t]||5.2;
+              return makeHotspot(n,x,y,sz);
+            }).join('')}
+          </div>
+
+          <!-- 底部功能按钮热区 -->
+          <div class="st-btn-hs" style="left:73%;bottom:3.8%;width:3.6vh;height:3.6vh;" title="点赞">❤️</div>
+          <div class="st-btn-hs" style="left:78.5%;bottom:3.8%;width:3.6vh;height:3.6vh;" title="分享">↗️</div>
+          <div class="st-btn-hs" style="left:84%;bottom:3.8%;width:3.6vh;height:3.6vh;" title="水滴">💧</div>
+          <div class="st-btn-hs" style="left:89.5%;bottom:3.8%;width:3.6vh;height:3.6vh;" title="定位">📍</div>
+          <div class="st-btn-hs" style="left:95%;bottom:3.8%;width:3.6vh;height:3.6vh;" title="设置">⚙️</div>
+
+          <!-- 完成升级按钮热区 -->
           <div class="st-finish-hs" id="btn-st-finish" title="完成升级">完成升级 ✓</div>
         </div>
+
+        <!-- 弹窗 -->
         <div id="st-node-modal" class="hidden">
           <div class="st-modal-card" id="st-modal-card">
             <button class="st-modal-close" id="st-modal-close">×</button>
@@ -1077,7 +1137,7 @@ export class Game {
     const showUnlockCelebration = (node: SkillNode) => {
       const cele = document.createElement('div');
       cele.style.cssText = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:99999;pointer-events:none;animation:celeFadeOut 1.5s ease forwards;';
-      cele.innerHTML = '<div style="text-align:center;animation:celePop .5s cubic-bezier(.34,1.56,.64,1);"><div style="font-size:4.2rem;">🎉</div><div style="font-size:1.3rem;font-weight:900;color:#e84a7f;margin-top:10px;">解锁成功！</div><div style="font-size:1rem;color:#666;margin-top:6px;">' + node.icon + ' ' + node.name + '</div></div>';
+      cele.innerHTML = '<div style="text-align:center;animation:celePop .5s cubic-bezier(.34,1.56,.64,1);"><div style="font-size:4rem;">🎉</div><div style="font-size:1.25rem;font-weight:900;color:#e84a7f;margin-top:10px;">解锁成功！</div><div style="font-size:1rem;color:#666;margin-top:6px;">' + node.icon + ' ' + node.name + '</div></div>';
       document.body.appendChild(cele);
       setTimeout(() => cele.remove(), 1500);
     };
@@ -1102,14 +1162,23 @@ export class Game {
       const canAfford = skillPoints >= cost && status !== 'locked';
       modalCost.textContent = '消耗技能点: ' + cost;
       modalCost.className = 'st-modal-cost ' + (canAfford ? 'can-afford' : 'cannot-afford');
-      if (status === 'unlocked') { modalAction.textContent = '已解锁 ✓'; modalAction.className = 'st-modal-btn locked-btn'; }
-      else if (status === 'locked') { modalAction.textContent = '🔒 未满足条件'; modalAction.className = 'st-modal-btn locked-btn'; }
-      else {
+      if (status === 'unlocked') {
+        modalAction.textContent = '已解锁 ✓'; modalAction.className = 'st-modal-btn locked-btn';
+      } else if (status === 'locked') {
+        modalAction.textContent = '🔒 未满足条件'; modalAction.className = 'st-modal-btn locked-btn';
+      } else {
         modalAction.textContent = '解锁 (' + cost + '点)'; modalAction.className = 'st-modal-btn unlock';
         modalAction.onclick = () => {
-          const cc = node.unlockCondition.cost ?? 1;
-          if (this.playerData.spendSkillPoints(cc)) { this.playerData.unlockNode(node.id); modal.classList.add('hidden'); showUnlockCelebration(node); this.renderSkillTree(); }
-          else { modalAction.textContent = '❌ 技能点不足！'; modalAction.className = 'st-modal-btn locked-btn'; setTimeout(() => { modalAction.textContent = '解锁 (' + cc + '点)'; modalAction.className = 'st-modal-btn unlock'; }, 1500); }
+          const c = node.unlockCondition.cost ?? 1;
+          if (this.playerData.spendSkillPoints(c)) {
+            this.playerData.unlockNode(node.id);
+            modal.classList.add('hidden');
+            showUnlockCelebration(node);
+            this.renderSkillTree();
+          } else {
+            modalAction.textContent = '❌ 技能点不足！'; modalAction.className = 'st-modal-btn locked-btn';
+            setTimeout(() => { modalAction.textContent = '解锁 (' + c + '点)'; modalAction.className = 'st-modal-btn unlock'; }, 1500);
+          }
         };
       }
       modal.classList.remove('hidden');
@@ -1122,15 +1191,20 @@ export class Game {
         if (node) showModal(node);
       });
     });
+
     element.querySelector('#st-modal-close')?.addEventListener('click', () => { modal.classList.add('hidden'); });
     modal.addEventListener('click', (e) => { if (e.target === modal) modal.classList.add('hidden'); });
     element.querySelector('#btn-st-close')?.addEventListener('click', () => { this.stateManager.changeScene('main_hub'); });
     element.querySelector('#btn-st-finish')?.addEventListener('click', () => { this.playerData.finishUpgrade(); this.stateManager.changeScene('main_hub'); });
+
     element.querySelectorAll('.st-hex-hs').forEach(el => {
       el.addEventListener('click', () => {
         const dimId = el.id.replace('hex-', '');
-        const firstNode = SKILL_NODES.find(n => n.dimensionId === dimId && n.tier === 1);
-        if (firstNode) showModal(firstNode);
+        const dim = DIMENSIONS.find(d => d.id === dimId);
+        if (dim) {
+          const firstNode = SKILL_NODES.find(n => n.dimensionId === dimId && n.tier === 1);
+          if (firstNode) showModal(firstNode);
+        }
       });
     });
   }

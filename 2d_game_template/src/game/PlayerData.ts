@@ -21,6 +21,9 @@ export interface PlayerState {
   hasFinishedUpgrade: boolean;
   streamContent: string;
   apiKey: string;
+  skillPoints: number;
+  unlockedNodes: string[];
+  totalSkillPointsEarned: number;
 }
 
 export class PlayerData {
@@ -49,6 +52,9 @@ export class PlayerData {
       hasFinishedUpgrade: false,
       streamContent: '',
       apiKey: '',
+      skillPoints: 20,
+      unlockedNodes: [],
+      totalSkillPointsEarned: 20,
     };
   }
 
@@ -156,11 +162,46 @@ export class PlayerData {
     }
   }
 
+  getSkillPoints(): number {
+    return this.state.skillPoints;
+  }
+
+  getUnlockedNodes(): readonly string[] {
+    return [...this.state.unlockedNodes];
+  }
+
+  isNodeUnlocked(nodeId: string): boolean {
+    return this.state.unlockedNodes.includes(nodeId);
+  }
+
+  spendSkillPoints(amount: number): boolean {
+    if (this.state.skillPoints >= amount) {
+      this.state.skillPoints -= amount;
+      this.notify();
+      return true;
+    }
+    return false;
+  }
+
+  unlockNode(nodeId: string): boolean {
+    if (this.state.unlockedNodes.includes(nodeId)) return false;
+    this.state.unlockedNodes.push(nodeId);
+    this.notify();
+    return true;
+  }
+
+  addSkillPoints(amount: number): void {
+    this.state.skillPoints += amount;
+    this.state.totalSkillPointsEarned += amount;
+    this.notify();
+  }
+
   advanceDay(): void {
     this.state.currentDay++;
     this.state.dailyUpgrades = { appearance: 0, knowledge: 0, fame: 0, talent: 0 };
     this.state.hasFinishedUpgrade = false;
     this.state.streamContent = '';
+    this.state.skillPoints += 2;
     this.notify();
   }
 
