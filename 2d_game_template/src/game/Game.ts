@@ -918,6 +918,8 @@ export class Game {
     const state = this.playerData.getState();
     const skillPoints = state.skillPoints ?? 20;
     const unlockedNodes: Set<string> = new Set(state.unlockedNodes || []);
+    let selectedNodeId: string | null = null;
+    let currentDimensionIndex = 0;
 
     const getNodeStatus = (node: SkillNode): 'locked' | 'available' | 'unlocked' => {
       if (unlockedNodes.has(node.id)) return 'unlocked';
@@ -925,136 +927,220 @@ export class Game {
       return node.unlockCondition.requiredNodes.every(id => unlockedNodes.has(id)) ? 'available' : 'locked';
     };
 
-    const getDimNodes = (dimId: string) => SKILL_NODES.filter(n => n.dimensionId === dimId);
-    const eloquenceNodes = getDimNodes('eloquence');
-    const appearanceNodes = getDimNodes('appearance');
-    const talentNodes = getDimNodes('talent');
-    const knowledgeNodes = getDimNodes('knowledge');
-
-    const makeHotspot = (node: SkillNode, pctX: number, pctY: number, size: number) => {
-      const status = getNodeStatus(node);
-      const dim = DIMENSIONS.find(d => d.id === node.dimensionId);
-      const color = dim?.color ?? '#ccc';
-      return '<div class="st-hotspot st-hotspot-' + status + '" data-id="' + node.id + '" style="left:' + pctX + '%;top:' + pctY + '%;width:' + size + 'vh;height:' + size + 'vh;--hc:' + color + ';" title="' + node.name + '">' +
-        '<span class="st-hs-icon">' + node.icon + '</span>' +
-        (status === 'unlocked' ? '<span class="st-hs-check">✓</span>' : '') +
-        '<span class="st-hs-ring"></span></div>';
+    const getDimProgress = (dimId: string) => {
+      const dimNodes = SKILL_NODES.filter(n => n.dimensionId === dimId);
+      const unlocked = dimNodes.filter(n => unlockedNodes.has(n.id)).length;
+      return unlocked + '/' + dimNodes.length;
     };
 
-    const html = `
-      <div class="skill-tree-page">
-        <style>
-          .skill-tree-page{width:100vw;height:100vh;overflow:hidden;position:relative;background:#ffeef2;}
-          .st-bg-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;}
-          .st-overlay{position:absolute;inset:0;z-index:5;}
-          .st-hotspot{position:absolute;border-radius:14px;display:flex;align-items:center;justify-content:center;
-            cursor:pointer;transform:translate(-50%,-50%);transition:all .25s ease;z-index:6;
-            background:rgba(255,255,255,0.1);border:2.5px solid rgba(255,255,255,0.4);backdrop-filter:blur(3px);}
-          .st-hotspot:hover{background:rgba(255,255,255,0.4);transform:translate(-50%,-50%) scale(1.22);z-index:20;
-            border-color:var(--hc);box-shadow:0 0 24px var(--hc)50,0 6px 20px rgba(0,0,0,0.15);}
-          .st-hotspot.locked{opacity:0.3;filter:grayscale(0.7);cursor:not-allowed;}
-          .st-hotspot.available{animation:hsPulse 2s ease-in-out infinite;border-style:dashed;border-width:2px;}
-          .st-hotspot.unlocked{border-color:var(--hc);border-width:2.5px;background:rgba(255,255,255,0.25);
-            box-shadow:0 0 14px var(--hc)45;}
-          .st-hs-icon{font-size:clamp(18px,2.5vh,34px);line-height:1;user-select:none;pointer-events:none;
-            filter:drop-shadow(0 2px 3px rgba(0,0,0,0.25));}
-          .st-hs-check{position:absolute;top:-5px;right:-5px;width:20px;height:20px;border-radius:50%;
-            background:linear-gradient(135deg,#4ade80,#22c55e);color:#fff;font-size:11px;display:flex;
-            align-items:center;justify-content:center;font-weight:900;border:2. solid #fff;
-            box-shadow:0 2px 8px rgba(0,0,0,0.2);z-index:7;}
-          .st-hs-ring{position:absolute;inset:-5px;border-radius:18px;border:2px solid transparent;
-            pointer-events:none;transition:border-color .3s;}
-          .st-hotspot:hover .st-hs-ring{border-color:var(--hc)70;}
-          @keyframes hsPulse{0%,100%{box-shadow:0 0 0 0 var(--hc)35;}50%{box-shadow:0 0 0 7px var(--hc)18,0 0 20px var(--hc)25;}}
-          .st-hex-hs{position:absolute;transform:translate(-50%,-50%);cursor:pointer;z-index:8;
-            border-radius:26px;transition:all .3s ease;background:rgba(255,255,255,0.06);border:2px dashed rgba(255,255,255,0.3);}
-          .st-hex-hs:hover{background:rgba(255,255,255,0.2);transform:translate(-50%,-50%) scale(1.08);
-            box-shadow:0 0 36px rgba(255,105,180,0.5),0 8px 32px rgba(0,0,0,0.18);}
-          .st-hex-hs-left{left:21%;top:17%;width:10vh;height:11vh;}
-          .st-hex-hs-center{left:50%;top:19%;transform:translate(-50%,-50%);width:11.5vh;height:12.5vh;
-            border-color:rgba(255,105,180,0.45);border-width:2.5px;}
-          .st-hex-hs-right{right:21%;top:17%;width:10vh;height:11vh;
-            border-color:rgba(135,206,235,0.35);}
-          .st-points-hs{position:absolute;left:50%;top:27%;transform:translateX(-50%);
-            width:15vh;height:4.5vh;border-radius:18px;cursor:default;z-index:7;
-            background:rgba(255,133,162,0.08);border:2px dashed rgba(255,133,162,0.28);}
-          .st-btn-hs{position:absolute;cursor:pointer;z-index:8;border-radius:50%;
-            transition:all .2s ease;border:2.5px dashed rgba(168,208,234,0.35);
-            background:rgba(232,244,252,0.1);}
-          .st-btn-hs:hover{background:rgba(232,244,252,0.4);transform:scale(1.18);
-            border-color:rgba(168,208,234,0.65);box-shadow:0 0 14px rgba(168,208,234,0.35);}
-          .st-finish-hs{position:absolute;bottom:5.5%;right:6%;padding:1.4vh 3.5vh;border-radius:24px;
-            cursor:pointer;z-index:8;background:rgba(255,107,157,0.12);border:2.5px dashed rgba(255,107,157,0.4);
-            transition:all .2s ease;color:transparent;font-size:0;line-height:0;overflow:hidden;}
-          .st-finish-hs:hover{background:rgba(255,107,157,0.35);transform:scale(1.04);
-            box-shadow:0 0 24px rgba(255,107,157,0.35);}
-          .st-close-hs{position:absolute;top:2%;right:1.2%;width:3.5vh;height:3.5vh;border-radius:50%;
-            cursor:pointer;z-index:10;background:rgba(232,74,127,0.1);border:2.5px dashed rgba(232,74,127,0.3);
-            transition:all .2s;}
-          .st-close-hs:hover{background:rgba(232,74,127,0.4);transform:scale(1.15);}
-          #st-node-modal{position:fixed;inset:0;background:rgba(0,0,0,0.5);backdrop-filter:blur(8px);
-            display:flex;align-items:center;justify-content:center;z-index:9999;}
-          #st-node-modal.hidden{display:none;}
-          .st-modal-card{background:#fff;border-radius:24px;padding:28px 32px;max-width:380px;width:88%;
-            box-shadow:0 28px 72px rgba(0,0,0,0.25);text-align:center;position:relative;
-            animation:mPop .35s cubic-bezier(.34,1.56,.64,1);border:3px solid;}
-          @keyframes mPop{from{opacity:0;transform:scale(0.82) translateY(24px);}to{opacity:1;transform:scale(1) translateY(0);}}
-          .st-modal-icon{font-size:3.6rem;margin-bottom:14px;}
-          .st-modal-name{font-size:1.4rem;font-weight:900;margin-bottom:6px;}
-          .st-modal-desc{font-size:0.86rem;color:#666;line-height:1.58;margin-bottom:16px;}
-          .st-modal-prereqs{font-size:0.78rem;color:#777;margin-bottom:16px;padding:12px 14px;
-            background:#fafafa;border-radius:14px;text-align:left;display:none;}
-          .st-modal-prereqs .prq-title{font-weight:800;margin-bottom:6px;color:#555;}
-          .st-modal-cost{display:inline-block;padding:7px 20px;border-radius:14px;font-weight:800;
-            font-size:0.9rem;margin-bottom:18px;}
-          .st-modal-cost.can-afford{background:#fef3c7;color:#b45309;}
-          .st-modal-cost.cannot-afford{background:#fee2e2;color:#dc2626;}
-          .st-modal-btn{padding:11px 38px;border-radius:22px;border:none;font-weight:800;font-size:0.95rem;
-            cursor:pointer;transition:all .2s;}
-          .st-modal-btn.unlock{background:linear-gradient(135deg,#ff6b9d,#ff8fab);color:#fff;
-            box-shadow:0 5px 16px rgba(255,107,157,0.4);}
-          .st-modal-btn.unlock:hover{transform:scale(1.05);}
-          .st-modal-btn.locked-btn{background:#f3f4f6;color:#9ca3af;cursor:not-allowed;}
-          .st-modal-close{position:absolute;top:11px;right:16px;width:30px;height:30px;border-radius:50%;
-            border:none;background:#f3f4f6;color:#999;font-size:1.1rem;cursor:pointer;
-            display:flex;align-items:center;justify-content:center;transition:all .15s;}
-          .st-modal-close:hover{background:#e5e7eb;color:#555;}
-          @keyframes celePop{from{opacity:0;transform:scale(0.5);}to{opacity:1;transform:scale(1);}}
-          @keyframes celeFadeOut{0%{opacity:1;}75%{opacity:1;}100%{opacity:0;}}
-          @media(max-width:768px){
-            .st-hotspot{width:7vw!important;height:7vw!important;}
-            .st-hs-icon{font-size:clamp(15px,4vw,26px)!important;}
-            .st-hex-hs{width:12vw!important;height:13vw!important;}
-            .st-hex-hs-center{width:14vw!important;height:15vw!important;}
-          }
-        </style>
-        <img class="st-bg-img" src="${skillTreeBgUrl}" alt="技能树" draggable="false" />
-        <div class="st-overlay" id="st-overlay">
-          <div class="st-close-hs" id="btn-st-close" title="关闭"></div>
-          <div class="st-hex-hs st-hex-hs-left" id="hex-eloquence" title="口才维度 · 嘴炮输出营"></div>
-          <div class="st-hex-hs st-hex-hs-center" id="hex-center" title="主播 · Lv.${state.level}"></div>
-          <div class="st-hex-hs st-hex-hs-right" id="hex-appearance" title="外貌维度 · 颜值buff馆"></div>
-          <div class="st-points-hs" title="技能点: ${skillPoints}"></div>
-          <div class="st-branch" data-dim="eloquence">${eloquenceNodes.map((n,i)=>{const t=n.tier-1;const tn=eloquenceNodes.filter(x=>x.tier===n.tier);const ri=tn.indexOf(n);const xMap=[[8,17,26],[9,18,28],[9,18,28],[13,23]];const yBase=[44,57,69,82][t];const x=(xMap[t]||[10])[Math.min(ri,(xMap[t]||[10]).length-1)]+(i*0.8);const y=yBase+(ri>=3?5:0)+(t===3&&ri>=1?3:0);const sz=[5.4,5.8,6.4][t]||5.4;return makeHotspot(n,x,y,sz)}).join('')}</div>
-          <div class="st-branch" data-dim="knowledge">${knowledgeNodes.map((n,i)=>{const t=n.tier-1;const tn=knowledgeNodes.filter(x=>x.tier===n.tier);const ri=tn.indexOf(n);const x=47+(tn.length>1?ri*11:11);const y=44+t*13+(ri>=3?5:0);const sz=[5.4,5.8,6.4][t]||5.4;return makeHotspot(n,x,y,sz)}).join('')}</div>
-          <div class="st-branch" data-dim="talent">${talentNodes.map((n,i)=>{const t=n.tier-1;const tn=talentNodes.filter(x=>x.tier===n.tier);const ri=tn.indexOf(n);const x=79+(tn.length>1?ri*10:0);const y=46+t*14+(ri>=3?5:0);const sz=[5.4,5.8,6.4][t]||5.4;return makeHotspot(n,x,y,sz)}).join('')}</div>
-          <div class="st-branch" data-dim="appearance">${appearanceNodes.map((n,i)=>{const t=n.tier-1;const tn=appearanceNodes.filter(x=>x.tier===n.tier);const ri=tn.indexOf(n);const x=63+(tn.length>1?ri*10:0);const y=48+t*13+(ri>=2?5:0);const sz=[5.4,5.8,6.4][t]||5.4;return makeHotspot(n,x,y,sz)}).join('')}</div>
-          <div class="st-btn-hs" style="left:73%;bottom:3.8%;width:3.8vh;height:3.8vh;" title="点赞">❤️</div>
-          <div class="st-btn-hs" style="left:78.5%;bottom:3.8%;width:3.8vh;height:3.8vh;" title="分享">↗️</div>
-          <div class="st-btn-hs" style="left:84%;bottom:3.8%;width:3.8vh;height:3.8vh;" title="水滴">💧</div>
-          <div class="st-btn-hs" style="left:89.5%;bottom:3.8%;width:3.8vh;height:3.8vh;" title="定位">📍</div>
-          <div class="st-btn-hs" style="left:95%;bottom:3.8%;width:3.8vh;height:3.8vh;" title="设置">⚙️</div>
-          <div class="st-finish-hs" id="btn-st-finish" title="完成升级">完成升级 ✓</div>
+    const lockSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>';
+
+    const makeNodeBtn = (node: SkillNode) => {
+      const status = getNodeStatus(node);
+      const isSelected = selectedNodeId === node.id;
+      const dim = DIMENSIONS.find(d => d.id === node.dimensionId);
+      const gf = node.gradientFrom || dim?.gradientFrom || '#f472b6';
+      const gt = node.gradientTo || dim?.gradientTo || '#ec4899';
+
+      let btnStyle, badgeBg, labelBg, labelColor, labelBorder, iconOpacity, overlayHtml;
+
+      if (status === 'unlocked') {
+        btnStyle = `width:80px;height:80px;border-radius:50%;border:5px solid #fff;transition:all .3s;background:linear-gradient(135deg,${gf},${gt});box-shadow:0 8px 25px ${gf}50;color:#fff;display:flex;align-items:center;justify-content:center;position:relative;cursor:pointer;flex-shrink:0;`;
+        badgeBg = '#fbbf24';
+        labelBg = 'rgba(255,255,255,0.95)';
+        labelColor = '#db2777';
+        labelBorder = '#fce7f3';
+        iconOpacity = '1';
+        overlayHtml = '';
+      } else if (status === 'available') {
+        btnStyle = `width:80px;height:80px;border-radius:50%;border:5px solid #fff;transition:all .3s;background:linear-gradient(135deg,${gf},${gt});box-shadow:0 8px 25px ${gf}50;color:#fff;display:flex;align-items:center;justify-content:center;position:relative;cursor:pointer;flex-shrink:0;`;
+        badgeBg = '#ec4899';
+        labelBg = 'rgba(255,255,255,0.95)';
+        labelColor = '#db2777';
+        labelBorder = '#fce7f3';
+        iconOpacity = '1';
+        overlayHtml = '';
+      } else {
+        btnStyle = 'width:80px;height:80px;border-radius:50%;border:5px solid #e5e7eb;transition:all .3s;background:#f3f4f6;color:#9ca3af;display:flex;align-items:center;justify-content:center;position:relative;cursor:not-allowed;flex-shrink:0;';
+        badgeBg = '#9ca3af';
+        labelBg = 'rgba(255,255,255,0.8)';
+        labelColor = '#9ca3af';
+        labelBorder = '#f3f4f6';
+        iconOpacity = '0.5';
+        overlayHtml = `<div style="position:absolute;inset:0;border-radius:50%;background:rgba(0,0,0,0.08);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(1px);">${lockSvg}</div>`;
+      }
+
+      if (isSelected && status !== 'locked') {
+        btnStyle += `box-shadow:0 0 0 6px ${gf}60,0 8px 30px ${gf}60;transform:scale(1.1);`;
+        badgeBg = '#ec4899';
+        labelBg = '#ec4899';
+        labelColor = '#fff';
+        labelBorder = '#f472b6';
+      }
+
+      const dimNodes = SKILL_NODES.filter(n => n.dimensionId === node.dimensionId);
+      const progress = dimNodes.filter(n => unlockedNodes.has(n.id)).length + '/' + dimNodes.length;
+
+      return `<div style="position:absolute;left:${node.position.x}%;top:${node.position.y}%;transform:translate(-50%,-50%);z-index:10;" data-node-id="${node.id}">
+        <button class="st-node-btn" data-id="${node.id}" style="${btnStyle}">
+          <div style="opacity:${iconOpacity};filter:drop-shadow(0 2px 4px rgba(0,0,0,0.2));">${node.svgIcon}</div>
+          ${overlayHtml}
+          <div style="position:absolute;bottom:-8px;right:-8px;min-width:32px;height:28px;padding:0 8px;border-radius:99px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;border:4px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.15);z-index:20;background:${badgeBg};color:#fff;">${progress}</div>
+        </button>
+        <div style="position:absolute;top:100%;margin-top:14px;left:50%;transform:translateX(-50%);text-align:center;width:max-content;pointer-events:none;">
+          <span style="font-size:13px;font-weight:900;padding:6px 14px;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,0.08);border:2px solid ${labelBorder};background:${labelBg};color:${labelColor};transition:all .3s;display:inline-block;white-space:nowrap;">${node.name}</span>
         </div>
-        <div id="st-node-modal" class="hidden">
-          <div class="st-modal-card" id="st-modal-card">
-            <button class="st-modal-close" id="st-modal-close">×</button>
-            <div class="st-modal-icon" id="st-modal-icon"></div>
-            <div class="st-modal-name" id="st-modal-name"></div>
-            <div class="st-modal-desc" id="st-modal-desc"></div>
-            <div class="st-modal-prereqs" id="st-modal-prereqs"></div>
-            <div class="st-modal-cost" id="st-modal-cost"></div>
-            <button class="st-modal-btn" id="st-modal-action"></button>
+      </div>`;
+    };
+
+    // 生成分页导航
+    const makeTabNavigation = () => {
+      return DIMENSIONS.map((dim, index) => {
+        const isActive = index === currentDimensionIndex;
+        const progress = getDimProgress(dim.id);
+        return `<button class="st-tab-btn ${isActive ? 'active' : ''}" data-index="${index}" style="
+          padding: 12px 24px;
+          border-radius: 16px;
+          border: none;
+          font-weight: 900;
+          font-size: 14px;
+          cursor: pointer;
+          transition: all 0.3s;
+          background: ${isActive ? `linear-gradient(135deg,${dim.gradientFrom},${dim.gradientTo})` : 'rgba(255,255,255,0.7)'};
+          color: ${isActive ? '#fff' : dim.color};
+          box-shadow: ${isActive ? `0 4px 15px ${dim.gradientFrom}50` : '0 2px 8px rgba(0,0,0,0.08)'};
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          border: 2px solid ${isActive ? '#fff' : 'transparent'};
+        ">
+          <span style="font-size:18px;">${dim.icon}</span>
+          <span>${dim.name}</span>
+          <span style="font-size:11px;opacity:0.9;background:rgba(255,255,255,0.3);padding:2px 6px;border-radius:99px;">${progress}</span>
+        </button>`;
+      }).join('');
+    };
+
+    // 生成当前维度的节点
+    const makeDimensionNodes = () => {
+      const currentDim = DIMENSIONS[currentDimensionIndex];
+      const dimNodes = SKILL_NODES.filter(n => n.dimensionId === currentDim.id);
+      return dimNodes.map(node => makeNodeBtn(node)).join('');
+    };
+
+    // 生成节点之间的连线
+    const makeConnections = () => {
+      const currentDim = DIMENSIONS[currentDimensionIndex];
+      const dimNodes = SKILL_NODES.filter(n => n.dimensionId === currentDim.id);
+      let lines = '';
+      
+      dimNodes.forEach(node => {
+        if (node.connections) {
+          node.connections.forEach(targetId => {
+            const target = SKILL_NODES.find(n => n.id === targetId);
+            if (target && target.dimensionId === currentDim.id) {
+              const x1 = node.position.x;
+              const y1 = node.position.y;
+              const x2 = target.position.x;
+              const y2 = target.position.y;
+              
+              // 计算连线样式
+              const isUnlocked = unlockedNodes.has(node.id) && unlockedNodes.has(targetId);
+              const lineColor = isUnlocked ? node.gradientFrom : '#e5e7eb';
+              
+              lines += `<line x1="${x1}%" y1="${y1}%" x2="${x2}%" y2="${y2}%" 
+                stroke="${lineColor}" 
+                stroke-width="3" 
+                stroke-dasharray="${isUnlocked ? '0' : '5,5'}"
+                style="opacity: ${isUnlocked ? 1 : 0.5};" />`;
+            }
+          });
+        }
+      });
+      
+      return lines;
+    };
+
+    const settingsSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ec4899" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>';
+    const sparklesSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="filter:drop-shadow(0 3px 6px rgba(168,85,247,0.4));"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/><path d="M4 17v2"/><path d="M5 18H3"/></svg>';
+    const sparklesSmSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/><path d="M4 17v2"/><path d="M5 18H3"/></svg>';
+
+    const html = `
+      <div id="skill-tree-page" style="width:100vw;height:100vh;overflow:hidden;position:relative;background:linear-gradient(135deg,#fce7f3 0%,#fdf2f8 25%,#faf5ff 50%,#eff6ff 75%,#f0f9ff 100%);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;">
+        <style>
+          .st-node-btn:hover{transform:scale(1.12)!important;}
+          .st-node-btn:active{transform:scale(1.05)!important;}
+          @keyframes spin-slow{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
+          .st-spin{animation:spin-slow 4s linear infinite;display:inline-block;}
+          @keyframes ping-anim{0%{transform:scale(1);opacity:.6;}50%,100%{transform:scale(1.8);opacity:0;}}
+          .st-ping-wrap{position:relative;display:inline-flex;align-items:center;}
+          .st-ping-wrap::before{content:'';position:absolute;inset:-4px;border-radius:inherit;background:currentColor;opacity:0;animation:ping-anim 2s cubic-bezier(0,0,.2,1) infinite;}
+          .st-unlock-btn:hover{transform:translateY(-2px);box-shadow:0 8px 25px rgba(236,72,153,0.35);}
+          .st-unlock-btn:active{transform:translateY(0);}
+          .st-dim-tag{font-size:11px;padding:3px 10px;border-radius:99px;font-weight:800;display:inline-block;}
+          .st-tab-btn:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,0.15);}
+          .st-tab-btn.active:hover{transform:translateY(-2px);}
+        </style>
+
+        <div style="display:flex;height:100%;">
+          <div style="flex:1;position:relative;min-width:0;overflow:hidden;">
+            <!-- 顶部标题和技能点 -->
+            <div style="position:absolute;top:16px;left:20px;z-index:30;display:flex;align-items:center;gap:16px;">
+              <div style="font-size:22px;font-weight:900;color:#be185d;display:flex;align-items:center;gap:6px;">
+                <span style="font-size:26px;">💖</span> 主播模拟器
+              </div>
+            </div>
+
+            <div style="position:absolute;top:16px;left:50%;transform:translateX(-50%);z-index:30;background:linear-gradient(135deg,#fce7f3,#fbcfe8);border:2.5px solid #f9a8d4;border-radius:99px;padding:8px 24px;display:flex;align-items:center;gap:8px;box-shadow:0 4px 15px rgba(236,72,153,0.2);">
+              <span style="color:#ec4899;font-size:18px;">💗</span>
+              <span style="font-size:17px;font-weight:900;color:#be185d;">技能点</span>
+              <span style="font-size:22px;font-weight:900;color:#db2777;" id="st-sp-display">${skillPoints}</span>
+              <span style="color:#f472b6;font-size:16px;">✨</span>
+            </div>
+
+            <button id="st-close-btn" title="返回主界面" style="position:absolute;top:16px;right:20px;z-index:30;width:42px;height:42px;border-radius:50%;border:none;background:rgba(255,255,255,0.7);backdrop-filter:blur(8px);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:20px;color:#be185d;transition:all .2s;box-shadow:0 2px 10px rgba(0,0,0,0.08);">
+              ✕
+            </button>
+
+            <!-- 分页导航 -->
+            <div id="st-tab-nav" style="position:absolute;top:70px;left:50%;transform:translateX(-50%);z-index:30;display:flex;gap:12px;">
+              ${makeTabNavigation()}
+            </div>
+
+            <!-- 技能树区域 -->
+            <div style="position:absolute;inset:130px 0 80px 0;" id="st-nodes-area">
+              <!-- SVG连线层 -->
+              <svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1;" id="st-connections">
+                ${makeConnections()}
+              </svg>
+              <!-- 节点层 -->
+              <div style="position:absolute;inset:0;z-index:10;" id="st-nodes-container">
+                ${makeDimensionNodes()}
+              </div>
+            </div>
+
+            <!-- 维度标题 -->
+            <div style="position:absolute;bottom:20px;left:50%;transform:translateX(-50%);z-index:30;text-align:center;">
+              <div style="font-size:24px;font-weight:900;color:${DIMENSIONS[currentDimensionIndex].color};display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.9);padding:12px 24px;border-radius:16px;box-shadow:0 4px 15px rgba(0,0,0,0.1);">
+                <span style="font-size:28px;">${DIMENSIONS[currentDimensionIndex].icon}</span>
+                <span>${DIMENSIONS[currentDimensionIndex].name}</span>
+                <span style="font-size:14px;color:#666;font-weight:600;">· ${DIMENSIONS[currentDimensionIndex].subtitle}</span>
+              </div>
+            </div>
+          </div>
+
+          <div id="st-sidebar" style="width:300px;min-width:300px;background:rgba(255,255,255,0.92);backdrop-filter:blur(20px);border-left:4px solid #fff;box-shadow:-10px 0 30px rgba(236,72,153,0.1);padding:24px;display:flex;flex-direction:column;position:relative;z-index:20;overflow-y:auto;">
+            <h2 style="font-size:19px;font-weight:900;color:#1f2937;margin-bottom:20px;display:flex;align-items:center;gap:8px;">
+              <span class="st-spin">${settingsSvg}</span> 技能研究所
+            </h2>
+
+            <div id="st-sidebar-content" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:20px 0;">
+              <div style="width:112px;height:112px;margin:0 auto 20px;border-radius:32px;background:linear-gradient(135deg,#c084fc,#a855f7);display:flex;align-items:center;justify-content:center;box-shadow:0 8px 30px rgba(168,85,247,0.35);transform:rotate(-3deg);border:4px solid #fff;">
+                ${sparklesSvg}
+              </div>
+              <p style="font-size:15px;font-weight:700;color:#6b7280;line-height:1.6;margin-bottom:12px;">点击左侧的技能节点<br/>查看详情并解锁新能力</p>
+              <p style="font-size:13px;color:#9ca3af;">选择一个技能开始研究吧~</p>
+            </div>
           </div>
         </div>
       </div>
@@ -1065,74 +1151,162 @@ export class Game {
     this.uiContainer.appendChild(element);
     this.currentUIElement = element;
 
-    const modal = element.querySelector('#st-node-modal') as HTMLElement;
-    const modalCard = element.querySelector('#st-modal-card') as HTMLElement;
-    const modalIcon = element.querySelector('#st-modal-icon') as HTMLElement;
-    const modalName = element.querySelector('#st-modal-name') as HTMLElement;
-    const modalDesc = element.querySelector('#st-modal-desc') as HTMLElement;
-    const modalPrereqs = element.querySelector('#st-modal-prereqs') as HTMLElement;
-    const modalCost = element.querySelector('#st-modal-cost') as HTMLElement;
-    const modalAction = element.querySelector('#st-modal-action') as HTMLElement;
+    // 更新节点显示
+    const updateNodesDisplay = () => {
+      const nodesContainer = element.querySelector('#st-nodes-container') as HTMLElement;
+      const connectionsSvg = element.querySelector('#st-connections') as HTMLElement;
+      const tabNav = element.querySelector('#st-tab-nav') as HTMLElement;
+      const dimTitle = element.querySelector('[style*="bottom:20px"]') as HTMLElement;
+      
+      if (nodesContainer) nodesContainer.innerHTML = makeDimensionNodes();
+      if (connectionsSvg) connectionsSvg.innerHTML = makeConnections();
+      if (tabNav) tabNav.innerHTML = makeTabNavigation();
+      if (dimTitle) {
+        const currentDim = DIMENSIONS[currentDimensionIndex];
+        dimTitle.innerHTML = `
+          <div style="font-size:24px;font-weight:900;color:${currentDim.color};display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.9);padding:12px 24px;border-radius:16px;box-shadow:0 4px 15px rgba(0,0,0,0.1);">
+            <span style="font-size:28px;">${currentDim.icon}</span>
+            <span>${currentDim.name}</span>
+            <span style="font-size:14px;color:#666;font-weight:600;">· ${currentDim.subtitle}</span>
+          </div>
+        `;
+      }
+      
+      // 重新绑定节点点击事件
+      bindNodeEvents();
+      // 重新绑定标签页点击事件
+      bindTabEvents();
+    };
+
+    // 绑定节点点击事件
+    const bindNodeEvents = () => {
+      element.querySelectorAll('.st-node-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const nid = (btn as HTMLElement).dataset.id;
+          const node = SKILL_NODES.find(n => n.id === nid);
+          if (!node) return;
+          selectedNodeId = nid ?? null;
+          element.querySelectorAll('.st-node-btn').forEach(b => { (b as HTMLElement).style.transform = ''; });
+          (btn as HTMLElement).style.transform = 'scale(1.1)';
+          updateSidebar(node);
+        });
+      });
+    };
+
+    // 绑定标签页点击事件
+    const bindTabEvents = () => {
+      element.querySelectorAll('.st-tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const index = parseInt((btn as HTMLElement).dataset.index || '0');
+          currentDimensionIndex = index;
+          selectedNodeId = null;
+          updateNodesDisplay();
+        });
+      });
+    };
+
+    const updateSidebar = (node: SkillNode) => {
+      const status = getNodeStatus(node);
+      const dim = DIMENSIONS.find(d => d.id === node.dimensionId);
+      const sidebarContent = element.querySelector('#st-sidebar-content') as HTMLElement;
+      const cost = node.unlockCondition.cost ?? 1;
+      const canAfford = skillPoints >= cost && status === 'available';
+      const dimNodes = SKILL_NODES.filter(n => n.dimensionId === node.dimensionId);
+      const unlockedInDim = dimNodes.filter(n => unlockedNodes.has(n.id)).length;
+
+      let statusText, statusStyle;
+      if (status === 'unlocked') { statusText = '已学习'; statusStyle = 'background:#dcfce7;color:#166534;'; }
+      else if (status === 'available') { statusText = '可学习'; statusStyle = 'background:#fef3c7;color:#92400e;'; }
+      else { statusText = '未解锁'; statusStyle = 'background:#fee2e2;color:#991b1b;'; }
+
+      const prereqHtml = node.unlockCondition.requiredNodes.length > 0
+        ? `<div style="margin-top:14px;padding:12px 14px;background:#f9fafb;border-radius:12px;text-align:left;">
+             <div style="font-size:12px;font-weight:800;color:#4b5563;margin-bottom:8px;">📋 前置要求：</div>
+             ${node.unlockCondition.requiredNodes.map(id => {
+               const rn = SKILL_NODES.find(n => n.id === id);
+               const u = unlockedNodes.has(id);
+               return `<span style="display:inline-block;font-size:11px;padding:3px 10px;border-radius:99px;margin:3px 4px 3px 0;font-weight:700;color:${u ? '#166534' : '#9ca3af'};background:${u ? '#dcfce7' : '#f3f4f6'};${u ? '' : 'text-decoration:line-through;'}">${rn?.icon || '?'} ${rn?.name || id}${u ? ' ✓' : ''}</span>`;
+             }).join('')}
+           </div>`
+        : '';
+
+      sidebarContent.style.alignItems = 'stretch';
+      sidebarContent.style.justifyContent = 'flex-start';
+      sidebarContent.innerHTML = `
+        <div style="width:112px;height:112px;margin:0 auto 18px;border-radius:32px;background:linear-gradient(135deg,${node.gradientFrom || dim?.gradientFrom || '#c084fc'},${node.gradientTo || dim?.gradientTo || '#a855f7'});display:flex;align-items:center;justify-content:center;box-shadow:0 8px 30px ${(node.gradientFrom || '#a855f7')}50;transform:rotate(-3deg);border:4px solid #fff;flex-shrink:0;">
+          <div style="color:#fff;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.2));">${node.svgIcon.replace(/width="28"/g, 'width="48"').replace(/height="28"/g, 'height="48"')}</div>
+        </div>
+        <h3 style="font-size:20px;font-weight:900;color:#111827;margin-bottom:6px;text-align:center;">${node.name}</h3>
+        <div style="text-align:center;margin-bottom:12px;">
+          <span class="st-dim-tag" style="background:${dim?.gradientFrom || '#ddd'}18;color:${dim?.color || '#666'};border:1.5px solid ${dim?.gradientFrom || '#ccc'}40;">${dim?.icon || ''} ${dim?.name || ''} · 第${node.tier}阶</span>
+        </div>
+        <p style="font-size:13px;color:#4b5563;line-height:1.65;margin-bottom:14px;text-align:left;background:#f9fafb;padding:14px;border-radius:12px;">${node.description}</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
+          <div style="flex:1;min-width:80px;padding:10px 12px;border-radius:12px;text-align:center;background:#f0fdf4;border:1.5px solid #bbf7d0;">
+            <div style="font-size:11px;color:#166534;font-weight:600;">等级</div>
+            <div style="font-size:18px;font-weight:900;color:#15803d;">Lv.${node.tier}</div>
+          </div>
+          <div style="flex:1;min-width:80px;padding:10px 12px;border-radius:12px;text-align:center;background:#fefce8;border:1.5px solid #fde68a;">
+            <div style="font-size:11px;color:#92400e;font-weight:600;">消耗SP</div>
+            <div style="font-size:18px;font-weight:900;color:#b45309;">${cost}</div>
+          </div>
+          <div style="flex:1;min-width:80px;padding:10px 12px;border-radius:12px;text-align:center;background:#fef2f2;border:1.5px solid #fecaca;">
+            <div style="font-size:11px;color:#991b1b;font-weight:600;">状态</div>
+            <div style="font-size:12px;font-weight:900;padding:3px 8px;border-radius:99px;display:inline-block;margin-top:2px;${statusStyle}">${statusText}</div>
+          </div>
+        </div>
+        <div style="padding:10px 14px;border-radius:12px;background:#f8fafc;border:1.5px solid #e2e8f0;margin-bottom:14px;">
+          <div style="font-size:12px;font-weight:700;color:#475569;display:flex;justify-content:space-between;">
+            <span>📊 维度进度</span><span style="color:${dim?.color || '#666'};font-weight:900;">${unlockedInDim}/${dimNodes.length}</span>
+          </div>
+          <div style="margin-top:6px;height:6px;border-radius:3px;background:#e2e8f0;overflow:hidden;">
+            <div style="height:100%;border-radius:3px;background:linear-gradient(90deg,${dim?.gradientFrom || '#888'},${dim?.gradientTo || '#666'});width:${Math.round((unlockedInDim / dimNodes.length) * 100)}%;transition:width .5s ease;"></div>
+          </div>
+        </div>
+        ${prereqHtml}
+        <button id="st-action-btn" style="${status === 'available' && canAfford
+          ? 'width:100%;padding:14px 24px;border-radius:14px;border:none;font-weight:900;font-size:15px;cursor:pointer;background:linear-gradient(135deg,#ec4899,#f43f5e);color:#fff;box-shadow:0 6px 20px rgba(236,72,153,0.35);transition:all .2s;display:flex;align-items:center;justify-content:center;gap:8px;border-bottom:4px solid #be185d;'
+          : 'width:100%;padding:14px 24px;border-radius:14px;border:none;font-weight:900;font-size:15px;cursor:not-allowed;background:#f3f4f6;color:#9ca3af;'}">
+          ${status === 'unlocked' ? '✅ 已学习'
+            : status === 'locked' ? '🔒 未满足前置条件'
+            : !canAfford ? '❌ 技能点不足'
+            : `<span class="st-ping-wrap">消耗 ${cost} SP 学习技能 ${sparklesSmSvg}</span>`}
+        </button>
+      `;
+
+      if (status === 'available' && canAfford) {
+        const actionBtn = sidebarContent.querySelector('#st-action-btn') as HTMLElement;
+        actionBtn.classList.add('st-unlock-btn');
+        actionBtn.addEventListener('click', () => {
+          if (this.playerData.spendSkillPoints(cost)) {
+            this.playerData.unlockNode(node.id);
+            showUnlockCelebration(node);
+            selectedNodeId = null;
+            setTimeout(() => this.renderSkillTree(), 100);
+          }
+        });
+      }
+    };
 
     const showUnlockCelebration = (node: SkillNode) => {
       const cele = document.createElement('div');
-      cele.style.cssText = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:99999;pointer-events:none;animation:celeFadeOut 1.5s ease forwards;';
-      cele.innerHTML = '<div style="text-align:center;animation:celePop .5s cubic-bezier(.34,1.56,.64,1);"><div style="font-size:4.2rem;">🎉</div><div style="font-size:1.3rem;font-weight:900;color:#e84a7f;margin-top:10px;">解锁成功！</div><div style="font-size:1rem;color:#666;margin-top:6px;">' + node.icon + ' ' + node.name + '</div></div>';
+      cele.style.cssText = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:99999;pointer-events:none;background:rgba(0,0,0,0.15);backdrop-filter:blur(4px);animation:celeFadeOut 1.5s ease forwards;';
+      cele.innerHTML = `<style>@keyframes celePop{from{opacity:0;transform:scale(0.5) translateY(20px);}to{opacity:1;transform:scale(1) translateY(0);}}@keyframes celeFadeOut{0%{opacity:1;}75%{opacity:1;}100%{opacity:0;}}</style>
+        <div style="text-align:center;animation:celePop .5s cubic-bezier(.34,1.56,.64,1);">
+          <div style="font-size:56px;">🎉</div>
+          <div style="font-size:22px;font-weight:900;color:#e84a7f;margin-top:12px;">解锁成功！</div>
+          <div style="font-size:16px;color:#666;margin-top:8px;background:rgba(255,255,255,0.95);padding:12px 24px;border-radius:14px;display:inline-block;margin-top:12px;">${node.svgIcon.replace(/width="28"/g, 'width="24"').replace(/height="28"/g, 'height="24"')} ${node.name}</div>
+        </div>`;
       document.body.appendChild(cele);
       setTimeout(() => cele.remove(), 1500);
     };
 
-    const showModal = (node: SkillNode) => {
-      const status = getNodeStatus(node);
-      const dim = DIMENSIONS.find(d => d.id === node.dimensionId);
-      modalIcon.textContent = node.icon;
-      modalName.textContent = node.name;
-      modalDesc.textContent = node.description;
-      if (node.unlockCondition.requiredNodes.length > 0) {
-        const reqNames = node.unlockCondition.requiredNodes.map(id => {
-          const rn = SKILL_NODES.find(n => n.id === id);
-          const u = unlockedNodes.has(id);
-          return '<span style="color:' + (u ? '#4ade80' : '#999') + ';' + (u ? '' : 'text-decoration:line-through;') + 'margin-right:6px;">' + (rn?.icon || '?') + ' ' + (rn?.name || id) + '</span>';
-        }).join('');
-        modalPrereqs.innerHTML = '<div class="prq-title">📋 前置要求：</div>' + reqNames;
-        modalPrereqs.style.display = '';
-      } else { modalPrereqs.style.display = 'none'; }
-      modalCard.style.borderColor = dim?.color ?? '#ccc';
-      const cost = node.unlockCondition.cost ?? 1;
-      const canAfford = skillPoints >= cost && status !== 'locked';
-      modalCost.textContent = '消耗技能点: ' + cost;
-      modalCost.className = 'st-modal-cost ' + (canAfford ? 'can-afford' : 'cannot-afford');
-      if (status === 'unlocked') { modalAction.textContent = '已解锁 ✓'; modalAction.className = 'st-modal-btn locked-btn'; }
-      else if (status === 'locked') { modalAction.textContent = '🔒 未满足条件'; modalAction.className = 'st-modal-btn locked-btn'; }
-      else {
-        modalAction.textContent = '解锁 (' + cost + '点)'; modalAction.className = 'st-modal-btn unlock';
-        modalAction.onclick = () => {
-          const cc = node.unlockCondition.cost ?? 1;
-          if (this.playerData.spendSkillPoints(cc)) { this.playerData.unlockNode(node.id); modal.classList.add('hidden'); showUnlockCelebration(node); this.renderSkillTree(); }
-          else { modalAction.textContent = '❌ 技能点不足！'; modalAction.className = 'st-modal-btn locked-btn'; setTimeout(() => { modalAction.textContent = '解锁 (' + cc + '点)'; modalAction.className = 'st-modal-btn unlock'; }, 1500); }
-        };
-      }
-      modal.classList.remove('hidden');
-    };
+    // 初始化绑定事件
+    bindNodeEvents();
+    bindTabEvents();
 
-    element.querySelectorAll('.st-hotspot').forEach(el => {
-      el.addEventListener('click', () => {
-        const nid = (el as HTMLElement).dataset.id;
-        const node = SKILL_NODES.find(n => n.id === nid);
-        if (node) showModal(node);
-      });
-    });
-    element.querySelector('#st-modal-close')?.addEventListener('click', () => { modal.classList.add('hidden'); });
-    modal.addEventListener('click', (e) => { if (e.target === modal) modal.classList.add('hidden'); });
-    element.querySelector('#btn-st-close')?.addEventListener('click', () => { this.stateManager.changeScene('main_hub'); });
-    element.querySelector('#btn-st-finish')?.addEventListener('click', () => { this.playerData.finishUpgrade(); this.stateManager.changeScene('main_hub'); });
-    element.querySelectorAll('.st-hex-hs').forEach(el => {
-      el.addEventListener('click', () => {
-        const dimId = el.id.replace('hex-', '');
-        const firstNode = SKILL_NODES.find(n => n.dimensionId === dimId && n.tier === 1);
-        if (firstNode) showModal(firstNode);
-      });
-    });
+    element.querySelector('#st-close-btn')?.addEventListener('click', () => { this.stateManager.changeScene('main_hub'); });
   }
 
   private renderStreamPlanning(): void {
