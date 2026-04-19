@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>主播模拟器 - 自动化测试</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Microsoft YaHei', sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #2d1b4e 50%, #1a1a2e 100%);
+      color: #fff;
+      min-height: 100vh;
+      padding: 40px 20px;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    h1 {
+      text-align: center;
+      font-size: 32px;
+      margin-bottom: 40px;
+      background: linear-gradient(135deg, #ffb6c1, #87ceeb);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    .test-panel {
+      background: rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 20px;
+      padding: 30px;
+      margin-bottom: 20px;
+    }
+    
+    .test-panel h2 {
+      font-size: 20px;
+      margin-bottom: 20px;
+      color: #ffb6c1;
+    }
+    
+    .btn-group {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+    
+    button {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 30px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      background: linear-gradient(135deg, #ffb6c1, #dda0dd);
+      color: #fff;
+    }
+    
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 0 20px rgba(255, 182, 193, 0.5);
+    }
+    
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    button.secondary {
+      background: transparent;
+      border: 2px solid #ffb6c1;
+      color: #ffb6c1;
+    }
+    
+    button.secondary:hover {
+      background: #ffb6c1;
+      color: #1a1a2e;
+    }
+    
+    .output {
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 12px;
+      padding: 20px;
+      font-family: 'Consolas', monospace;
+      font-size: 13px;
+      line-height: 1.6;
+      max-height: 500px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+    }
+    
+    .output:empty::before {
+      content: '点击上方按钮开始测试...';
+      color: #808080;
+    }
+    
+    .status {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      margin-left: 10px;
+    }
+    
+    .status.running {
+      background: #f59e0b;
+      color: #000;
+    }
+    
+    .status.success {
+      background: #10b981;
+      color: #000;
+    }
+    
+    .status.error {
+      background: #ef4444;
+      color: #fff;
+    }
+    
+    .progress-bar {
+      width: 100%;
+      height: 8px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+      margin-top: 20px;
+      overflow: hidden;
+    }
+    
+    .progress-bar .fill {
+      height: 100%;
+      background: linear-gradient(90deg, #ffb6c1, #87ceeb);
+      border-radius: 4px;
+      transition: width 0.3s ease;
+      width: 0%;
+    }
+    
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-top: 20px;
+    }
+    
+    .info-card {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      padding: 16px;
+      text-align: center;
+    }
+    
+    .info-card .value {
+      font-size: 28px;
+      font-weight: 700;
+      color: #ffb6c1;
+    }
+    
+    .info-card .label {
+      font-size: 12px;
+      color: #b0b0b0;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎮 主播模拟器：双面人生 - 自动化测试</h1>
+    
+    <div class="test-panel">
+      <h2>📋 设计文档一致性测试 <span id="design-status" class="status" style="display:none"></span></h2>
+      <div class="btn-group">
+        <button onclick="runDesignTests()">运行设计文档测试</button>
+        <button class="secondary" onclick="clearOutput('design-output')">清空</button>
+      </div>
+      <div id="design-output" class="output"></div>
+      <div class="progress-bar">
+        <div id="design-progress" class="fill"></div>
+      </div>
+    </div>
+    
+    <div class="test-panel">
+      <h2>🎲 游戏流程模拟 <span id="sim-status" class="status" style="display:none"></span></h2>
+      <div class="btn-group">
+        <button onclick="runSimulation()">运行单次模拟</button>
+        <button onclick="runBatchSimulation()">批量模拟 (10次)</button>
+        <button class="secondary" onclick="clearOutput('sim-output')">清空</button>
+      </div>
+      <div id="sim-output" class="output"></div>
+      <div class="progress-bar">
+        <div id="sim-progress" class="fill"></div>
+      </div>
+    </div>
+    
+    <div class="test-panel">
+      <h2>📊 快速统计</h2>
+      <div class="info-grid">
+        <div class="info-card">
+          <div id="stat-story" class="value">-</div>
+          <div class="label">剧情节点</div>
+        </div>
+        <div class="info-card">
+          <div id="stat-events" class="value">-</div>
+          <div class="label">随机事件</div>
+        </div>
+        <div class="info-card">
+          <div id="stat-npc" class="value">-</div>
+          <div class="label">NPC数量</div>
+        </div>
+        <div class="info-card">
+          <div id="stat-danmaku" class="value">-</div>
+          <div class="label">弹幕人格</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    // 导入测试模块
+    import { runQuickTest, runFullTest, runBatchSimulation } from './src/testing/index.ts';
+    import { STORY_NODES } from './src/events/StoryNodes.ts';
+    import { RANDOM_EVENTS } from './src/events/RandomEvents.ts';
+    import { NPCS } from './src/systems/NPCSystem.ts';
+    import { DANMAKU_PERSONALITIES } from './src/data/Types.ts';
+    
+    // 更新统计信息
+    document.getElementById('stat-story').textContent = STORY_NODES.length;
+    document.getElementById('stat-events').textContent = RANDOM_EVENTS.length;
+    document.getElementById('stat-npc').textContent = Object.keys(NPCS).length;
+    document.getElementById('stat-danmaku').textContent = DANMAKU_PERSONALITIES.length;
+    
+    // 全局函数
+    window.runDesignTests = async () => {
+      const output = document.getElementById('design-output');
+      const status = document.getElementById('design-status');
+      const progress = document.getElementById('design-progress');
+      
+      output.textContent = '运行中...';
+      status.style.display = 'inline-block';
+      status.className = 'status running';
+      status.textContent = '运行中';
+      progress.style.width = '50%';
+      
+      try {
+        const results = await runQuickTest();
+        const passed = results.filter(r => r.passed).length;
+        const total = results.length;
+        
+        output.textContent = results.map(r => 
+          `${r.passed ? '✅' : '❌'} ${r.testName}: ${r.message}`
+        ).join('\n');
+        
+        status.className = 'status success';
+        status.textContent = `${passed}/${total} 通过`;
+        progress.style.width = '100%';
+      } catch (error) {
+        output.textContent = `错误: ${error.message}`;
+        status.className = 'status error';
+        status.textContent = '失败';
+        progress.style.width = '0%';
+      }
+    };
+    
+    window.runSimulation = async () => {
+      const output = document.getElementById('sim-output');
+      const status = document.getElementById('sim-status');
+      const progress = document.getElementById('sim-progress');
+      
+      output.textContent = '模拟中...';
+      status.style.display = 'inline-block';
+      status.className = 'status running';
+      status.textContent = '运行中';
+      progress.style.width = '30%';
+      
+      try {
+        const { quickSimulate } = await import('./src/testing/GameFlowSimulator.ts');
+        progress.style.width = '60%';
+        
+        const result = await quickSimulate();
+        progress.style.width = '100%';
+        
+        output.textContent = `
+🎮 游戏模拟完成
+
+📊 最终结果:
+- 结局: ${result.ending}
+- 粉丝数: ${result.finalState.followers.toLocaleString()}
+- 善良值: ${result.finalState.kindness}
+- 诚信值: ${result.finalState.integrity}
+- 翻车次数: ${result.finalState.failCount}
+
+📅 触发事件:
+${result.days.filter(d => d.event).map(d => `  第${d.day}天: ${d.event.title}`).join('\n')}
+
+🔥 热搜记录:
+${result.days.filter(d => d.hotSearch).map(d => `  第${d.day}天: ${d.hotSearch}`).join('\n') || '  无'}
+        `.trim();
+        
+        status.className = 'status success';
+        status.textContent = '完成';
+      } catch (error) {
+        output.textContent = `错误: ${error.message}`;
+        status.className = 'status error';
+        status.textContent = '失败';
+        progress.style.width = '0%';
+      }
+    };
+    
+    window.runBatchSimulation = async () => {
+      const output = document.getElementById('sim-output');
+      const status = document.getElementById('sim-status');
+      const progress = document.getElementById('sim-progress');
+      
+      output.textContent = '批量模拟中 (10次)...';
+      status.style.display = 'inline-block';
+      status.className = 'status running';
+      status.textContent = '运行中';
+      progress.style.width = '10%';
+      
+      try {
+        await runBatchSimulation(10);
+        progress.style.width = '100%';
+        status.className = 'status success';
+        status.textContent = '完成';
+      } catch (error) {
+        output.textContent = `错误: ${error.message}`;
+        status.className = 'status error';
+        status.textContent = '失败';
+        progress.style.width = '0%';
+      }
+    };
+    
+    window.clearOutput = (id) => {
+      document.getElementById(id).textContent = '';
+    };
+  </script>
+</body>
+</html>

@@ -1,0 +1,675 @@
+/**
+ * 二次元主题样式
+ * 粉蓝渐变 + 毛玻璃效果 + 发光动画
+ */
+
+/* ==================== CSS变量定义 ==================== */
+:root {
+  /* 主色调 - 粉蓝渐变 */
+  --primary-pink: #ffb6c1;
+  --primary-pink-light: #ffc0cb;
+  --primary-pink-dark: #ff69b4;
+  --primary-blue: #87ceeb;
+  --primary-blue-light: #b0e0e6;
+  --primary-blue-dark: #4682b4;
+  --primary-purple: #dda0dd;
+  --primary-purple-light: #e6e6fa;
+  
+  /* 背景色 */
+  --bg-dark: #1a1a2e;
+  --bg-darker: #0f0f1a;
+  --bg-card: rgba(255, 255, 255, 0.08);
+  --bg-card-hover: rgba(255, 255, 255, 0.12);
+  --bg-gradient: linear-gradient(135deg, #1a1a2e 0%, #2d1b4e 50%, #1a1a2e 100%);
+  --bg-gradient-pink: linear-gradient(135deg, #1a1a2e 0%, #3d1b3e 50%, #1a1a2e 100%);
+  --bg-gradient-blue: linear-gradient(135deg, #1a1a2e 0%, #1b3d4e 50%, #1a1a2e 100%);
+  
+  /* 文字色 */
+  --text-primary: #ffffff;
+  --text-secondary: #b0b0b0;
+  --text-muted: #808080;
+  --text-accent: #ffd700;
+  --text-pink: #ffb6c1;
+  --text-blue: #87ceeb;
+  
+  /* 边框和特效 */
+  --glass-bg: rgba(255, 255, 255, 0.08);
+  --glass-border: rgba(255, 255, 255, 0.15);
+  --glass-border-hover: rgba(255, 255, 255, 0.25);
+  --glow-pink: 0 0 20px rgba(255, 182, 193, 0.5);
+  --glow-pink-strong: 0 0 30px rgba(255, 182, 193, 0.8);
+  --glow-blue: 0 0 20px rgba(135, 206, 235, 0.5);
+  --glow-blue-strong: 0 0 30px rgba(135, 206, 235, 0.8);
+  --glow-purple: 0 0 20px rgba(221, 160, 221, 0.5);
+  
+  /* 阴影 */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.4);
+  
+  /* 圆角 */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-xl: 30px;
+  
+  /* 动画 */
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.3s ease;
+  --transition-slow: 0.5s ease;
+}
+
+/* ==================== 基础样式重置 ==================== */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+  background: var(--bg-gradient);
+  color: var(--text-primary);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ==================== 毛玻璃卡片 ==================== */
+.anime-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  padding: 24px;
+  transition: all var(--transition-normal);
+  box-shadow: var(--shadow-md);
+}
+
+.anime-card:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--glass-border-hover);
+  box-shadow: var(--shadow-lg), var(--glow-pink);
+  transform: translateY(-2px);
+}
+
+.anime-card-pink {
+  border-color: rgba(255, 182, 193, 0.3);
+}
+
+.anime-card-pink:hover {
+  box-shadow: var(--shadow-lg), var(--glow-pink);
+}
+
+.anime-card-blue {
+  border-color: rgba(135, 206, 235, 0.3);
+}
+
+.anime-card-blue:hover {
+  box-shadow: var(--shadow-lg), var(--glow-blue);
+}
+
+/* ==================== 渐变按钮 ==================== */
+.anime-btn {
+  position: relative;
+  padding: 12px 32px;
+  border: none;
+  border-radius: var(--radius-xl);
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  overflow: hidden;
+  transition: all var(--transition-normal);
+  background: linear-gradient(135deg, var(--primary-pink) 0%, var(--primary-purple) 100%);
+  color: white;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.anime-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  transition: left 0.5s ease;
+}
+
+.anime-btn:hover::before {
+  left: 100%;
+}
+
+.anime-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--glow-pink);
+}
+
+.anime-btn:active {
+  transform: translateY(0);
+}
+
+.anime-btn-blue {
+  background: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-purple) 100%);
+}
+
+.anime-btn-blue:hover {
+  box-shadow: var(--glow-blue);
+}
+
+.anime-btn-outline {
+  background: transparent;
+  border: 2px solid var(--primary-pink);
+  color: var(--primary-pink);
+}
+
+.anime-btn-outline:hover {
+  background: var(--primary-pink);
+  color: white;
+}
+
+.anime-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* ==================== 文字渐变 ==================== */
+.anime-text-gradient {
+  background: linear-gradient(135deg, var(--primary-pink) 0%, var(--primary-blue) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.anime-text-gradient-pink {
+  background: linear-gradient(135deg, var(--primary-pink-light) 0%, var(--primary-pink-dark) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.anime-text-glow {
+  text-shadow: 0 0 10px rgba(255, 182, 193, 0.5), 0 0 20px rgba(255, 182, 193, 0.3);
+}
+
+/* ==================== 发光效果 ==================== */
+.anime-glow {
+  box-shadow: var(--glow-pink);
+}
+
+.anime-glow-blue {
+  box-shadow: var(--glow-blue);
+}
+
+.anime-glow-strong {
+  box-shadow: var(--glow-pink-strong);
+}
+
+/* ==================== 悬浮动画 ==================== */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.anime-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.anime-float-delay {
+  animation: float 3s ease-in-out 0.5s infinite;
+}
+
+/* ==================== 呼吸动画 ==================== */
+@keyframes breathe {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.02);
+  }
+}
+
+.anime-breathe {
+  animation: breathe 4s ease-in-out infinite;
+}
+
+/* ==================== 闪烁动画 ==================== */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.anime-shimmer {
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    rgba(255, 255, 255, 0.1) 50%, 
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
+
+/* ==================== 脉冲动画 ==================== */
+@keyframes pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(255, 182, 193, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 15px rgba(255, 182, 193, 0);
+  }
+}
+
+.anime-pulse {
+  animation: pulse 2s infinite;
+}
+
+/* ==================== 淡入动画 ==================== */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.anime-fade-in {
+  animation: fadeIn 0.5s ease-out;
+}
+
+/* ==================== 打字机效果 ==================== */
+@keyframes typing {
+  from {
+    width: 0;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+@keyframes blink {
+  50% {
+    border-color: transparent;
+  }
+}
+
+.anime-typing {
+  overflow: hidden;
+  white-space: nowrap;
+  border-right: 2px solid var(--primary-pink);
+  animation: 
+    typing 3s steps(40, end),
+    blink 0.75s step-end infinite;
+}
+
+/* ==================== 数值变化动画 ==================== */
+@keyframes numberChange {
+  0% {
+    transform: scale(1);
+    color: var(--text-primary);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.anime-number-up {
+  animation: numberChange 0.5s ease;
+  color: #4ade80 !important;
+}
+
+.anime-number-down {
+  animation: numberChange 0.5s ease;
+  color: #f87171 !important;
+}
+
+/* ==================== 对话框样式 ==================== */
+.anime-dialog-box {
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  padding: 20px 24px;
+  position: relative;
+  margin: 20px 0;
+}
+
+.anime-dialog-box::before {
+  content: '';
+  position: absolute;
+  left: -10px;
+  top: 20px;
+  width: 0;
+  height: 0;
+  border-top: 10px solid transparent;
+  border-bottom: 10px solid transparent;
+  border-right: 10px solid var(--glass-border);
+}
+
+.anime-dialog-text {
+  font-size: 16px;
+  line-height: 1.8;
+  color: var(--text-primary);
+}
+
+.anime-dialog-speaker {
+  font-size: 14px;
+  color: var(--primary-pink);
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+/* ==================== 选项面板 ==================== */
+.anime-choice-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 20px 0;
+}
+
+.anime-choice-item {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  padding: 16px 20px;
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.anime-choice-item:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--primary-pink);
+  box-shadow: var(--glow-pink);
+  transform: translateX(5px);
+}
+
+.anime-choice-item.selected {
+  background: rgba(255, 182, 193, 0.2);
+  border-color: var(--primary-pink);
+}
+
+.anime-choice-number {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary-pink), var(--primary-purple));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.anime-choice-text {
+  flex: 1;
+  font-size: 15px;
+}
+
+/* ==================== 数值面板 ==================== */
+.anime-stats-panel {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 16px;
+  padding: 20px;
+}
+
+.anime-stat-item {
+  background: var(--glass-bg);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  text-align: center;
+  transition: all var(--transition-normal);
+}
+
+.anime-stat-item:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
+}
+
+.anime-stat-icon {
+  font-size: 24px;
+  margin-bottom: 8px;
+}
+
+.anime-stat-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.anime-stat-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.anime-stat-change {
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.anime-stat-change.up {
+  color: #4ade80;
+}
+
+.anime-stat-change.down {
+  color: #f87171;
+}
+
+/* ==================== 弹幕样式 ==================== */
+.anime-danmaku-container {
+  position: relative;
+  overflow: hidden;
+  height: 200px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: var(--radius-md);
+}
+
+.anime-danmaku-item {
+  position: absolute;
+  white-space: nowrap;
+  font-size: 14px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  background: rgba(0, 0, 0, 0.5);
+  animation: danmakuMove 8s linear;
+}
+
+@keyframes danmakuMove {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(-100%);
+  }
+}
+
+/* ==================== 热搜卡片 ==================== */
+.anime-hotsearch-card {
+  background: linear-gradient(135deg, rgba(255, 182, 193, 0.1), rgba(135, 206, 235, 0.1));
+  border: 1px solid rgba(255, 182, 193, 0.3);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  margin: 16px 0;
+}
+
+.anime-hotsearch-keyword {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--primary-pink);
+  margin-bottom: 8px;
+}
+
+.anime-hotsearch-heat {
+  font-size: 14px;
+  color: var(--text-accent);
+  margin-bottom: 12px;
+}
+
+.anime-hotsearch-comment {
+  font-size: 14px;
+  color: var(--text-secondary);
+  font-style: italic;
+  padding-left: 12px;
+  border-left: 3px solid var(--primary-pink);
+}
+
+/* ==================== 角色立绘容器 ==================== */
+.anime-character-container {
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.anime-character-image {
+  width: 100%;
+  height: auto;
+  filter: drop-shadow(0 10px 30px rgba(0, 0, 0, 0.3));
+  transition: all var(--transition-normal);
+}
+
+.anime-character-image:hover {
+  filter: drop-shadow(0 15px 40px rgba(255, 182, 193, 0.3));
+  transform: scale(1.02);
+}
+
+/* ==================== 场景容器 ==================== */
+.anime-scene-container {
+  min-height: 100vh;
+  padding: 40px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.anime-scene-title {
+  font-size: 32px;
+  font-weight: 700;
+  margin-bottom: 32px;
+  text-align: center;
+}
+
+.anime-scene-content {
+  width: 100%;
+  max-width: 800px;
+}
+
+/* ==================== 加载动画 ==================== */
+.anime-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+}
+
+.anime-loading-spinner {
+  width: 50px;
+  height: 50px;
+  border: 3px solid rgba(255, 182, 193, 0.3);
+  border-top-color: var(--primary-pink);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.anime-loading-text {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+/* ==================== 滚动条样式 ==================== */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, var(--primary-pink), var(--primary-purple));
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, var(--primary-pink-light), var(--primary-purple-light));
+}
+
+/* ==================== 响应式设计 ==================== */
+@media (max-width: 768px) {
+  .anime-stats-panel {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .anime-scene-title {
+    font-size: 24px;
+  }
+  
+  .anime-btn {
+    padding: 10px 24px;
+    font-size: 14px;
+  }
+  
+  .anime-card {
+    padding: 16px;
+  }
+}
+
+/* ==================== 特殊效果 ==================== */
+.anime-rainbow-text {
+  background: linear-gradient(90deg, 
+    #ff0000, #ff7f00, #ffff00, #00ff00, 
+    #0000ff, #4b0082, #9400d3
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  background-size: 200% auto;
+  animation: rainbow 3s linear infinite;
+}
+
+@keyframes rainbow {
+  to {
+    background-position: 200% center;
+  }
+}
+
+.anime-star-bg {
+  background-image: 
+    radial-gradient(2px 2px at 20px 30px, rgba(255, 255, 255, 0.3), transparent),
+    radial-gradient(2px 2px at 40px 70px, rgba(255, 255, 255, 0.2), transparent),
+    radial-gradient(1px 1px at 90px 40px, rgba(255, 255, 255, 0.3), transparent),
+    radial-gradient(2px 2px at 160px 120px, rgba(255, 255, 255, 0.2), transparent);
+  background-repeat: repeat;
+  background-size: 200px 200px;
+}
