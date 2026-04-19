@@ -1,5 +1,6 @@
 /**
  * 游戏主类 - 协调所有系统
+ * 整合双面人生功能
  */
 
 import { Application } from 'pixi.js';
@@ -11,12 +12,31 @@ import * as DefaultContent from '../services/DefaultContent';
 import { DIMENSIONS, SKILL_NODES, type SkillNode, type SkillDimension } from './SkillTreeConfig';
 import skillTreeBgUrl from '/skill-tree-bg.png';
 
+// 双面人生系统导入
+import { NPCSystem } from '../systems/NPCSystem';
+import { SurvivalSystem } from '../systems/SurvivalSystem';
+import { DanmakuSystem } from '../systems/DanmakuSystem';
+import { HotSearchSystem } from '../systems/HotSearchSystem';
+import { EndingSystem } from '../systems/EndingSystem';
+import { CreditsSystem } from '../systems/CreditsSystem';
+import { getStoryNodeByDay, hasStoryNode } from '../events/StoryNodes';
+import { getRandomEvent } from '../events/RandomEvents';
+import { gameLogger } from '../utils/GameLogger';
+
 export class Game {
   public app: Application;
   public stateManager: GameStateManager;
   public playerData: PlayerData;
   public aiService: AIService;
   public eventPool: EventPool;
+
+  // 双面人生系统
+  public npcSystem: NPCSystem;
+  public survivalSystem: SurvivalSystem;
+  public danmakuSystem: DanmakuSystem;
+  public hotSearchSystem: HotSearchSystem;
+  public endingSystem: EndingSystem;
+  public creditsSystem: CreditsSystem;
 
   private uiContainer: HTMLElement;
   private pixiContainer: HTMLElement;
@@ -28,6 +48,17 @@ export class Game {
     this.playerData = new PlayerData();
     this.aiService = new AIService();
     this.eventPool = new EventPool();
+
+    // 初始化双面人生系统
+    this.npcSystem = new NPCSystem(this.playerData);
+    this.survivalSystem = new SurvivalSystem(this.playerData);
+    this.danmakuSystem = new DanmakuSystem(this.playerData);
+    this.hotSearchSystem = new HotSearchSystem(this.playerData);
+    this.endingSystem = new EndingSystem(this.playerData);
+    this.creditsSystem = new CreditsSystem(this.playerData);
+
+    // 设置日志引用
+    gameLogger.setPlayerData(this.playerData);
 
     // 创建容器
     this.uiContainer = document.getElementById('ui-container') || document.createElement('div');
@@ -183,7 +214,9 @@ export class Game {
     this.currentUIElement = element;
 
     // 绑定事件
-    element.querySelector('#btn-start')?.addEventListener('click', () => {
+    element.querySelector('#btn-start')?.addEventListener('click', async () => {
+      // 显示开场动画（完整立绘）
+      await this.showOpeningScene();
       this.stateManager.changeScene('category_select');
     });
 
@@ -2087,19 +2120,274 @@ export class Game {
     this.uiContainer.appendChild(element);
     this.currentUIElement = element;
 
-    element.querySelector('#btn-next-day')?.addEventListener('click', () => {
+    element.querySelector('#btn-next-day')?.addEventListener('click', async () => {
       this.aiService.clearCache();
       this.playerData.advanceDay();
       
-      // 检查游戏是否结束
-      if (this.playerData.isGameOver()) {
-        this.stateManager.changeScene('game_over');
-      } else if (this.playerData.isVictory()) {
-        this.stateManager.changeScene('victory');
-      } else {
-        // 每日结算后，先进入直播计划输入界面
-        this.stateManager.changeScene('stream_planning');
+      // 检查游戏是否结束（第20天触发双面人生结局）
+      const state = this.playerData.getState();
+      if (state.currentDay >= 20) {
+        // 触发双面人生结局
+        await this.handleDoubleLifeEnding();
+        return;
       }
+      
+      // 双面人生每日流程
+      await this.handleDoubleLifeDailyFlow();
+    });
+  }
+
+  /**
+   * 双面人生每日流程
+   */
+  private async handleDoubleLifeDailyFlow(): Promise<void> {
+    const state = this.playerData.getState();
+    const day = state.currentDay;
+    
+    gameLogger.logDailyOpening(day, '开始新的一天', 'happy');
+
+    // 1. 处理生存支付
+    const survivalResult = this.survivalSystem.processDaily();
+    gameLogger.logSurvivalStatus(survivalResult.expenses, survivalResult.paid, survivalResult.crisis);
+    
+    if (survivalResult.crisis) {
+      // 显示生存危机
+      await this.showSurvivalCrisis(survivalResult.crisis);
+    }
+
+    // 2. 检查NPC互动
+    const npcEvent = this.npcSystem.checkDailyInteraction(day);
+    if (npcEvent && npcEvent.interaction) {
+      gameLogger.logNPCInteraction(
+        npcEvent.npcId,
+        npcEvent.interaction.npcName,
+        npcEvent.interaction.dialog,
+        npcEvent.interaction.emotion
+      );
+      await this.showNPCDialog(npcEvent.interaction);
+    }
+
+    // 3. 检查剧情节点
+    const storyNode = getStoryNodeByDay(day, state);
+    if (storyNode) {
+      gameLogger.logStoryEvent(storyNode);
+      await this.showStoryNode(storyNode);
+      return; // 剧情节点处理完后进入下一天
+    }
+
+    // 4. 随机事件（30%概率）
+    if (Math.random() < 0.3) {
+      const randomEvent = getRandomEvent();
+      gameLogger.logRandomEvent(randomEvent);
+      await this.showRandomEvent(randomEvent);
+      return;
+    }
+
+    // 5. 正常进入直播策划
+    this.stateManager.changeScene('stream_planning');
+  }
+
+  /**
+   * 显示生存危机
+   */
+  private async showSurvivalCrisis(crisis: any): Promise<void> {
+    return new Promise((resolve) => {
+      this.renderSurvivalCrisis(crisis, () => {
+        resolve();
+      });
+    });
+  }
+
+  /**
+   * 显示NPC对话
+   */
+  private async showNPCDialog(interaction: any): Promise<void> {
+    return new Promise((resolve) => {
+      if (interaction.choices && interaction.choices.length > 0) {
+        // 有选择的对话
+        const html = `
+          <div class="double-life-dialog">
+            <div class="npc-portrait">${this.npcSystem.getNPCPortrait(interaction.npcId)}</div>
+            <div class="dialog-box animate-slide-up">
+              <div class="dialog-speaker">${interaction.npcName}</div>
+              <div class="dialog-text">${interaction.dialog}</div>
+              <div class="dialog-choices">
+                ${interaction.choices.map((choice: any) => `
+                  <button class="choice-btn" data-choice-id="${choice.id}">${choice.text}</button>
+                `).join('')}
+              </div>
+            </div>
+            ${this.renderCharacterPortrait(interaction.emotion, 'right')}
+          </div>
+        `;
+        this.showOverlay(html);
+
+        // 绑定选择事件
+        document.querySelectorAll('.choice-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            const choiceId = (e.currentTarget as HTMLElement).dataset.choiceId;
+            const choice = interaction.choices.find((c: any) => c.id === choiceId);
+            if (choice) {
+              this.npcSystem.applyChoiceEffects(choice, interaction.npcId);
+              this.hideOverlay();
+              resolve();
+            }
+          });
+        });
+      } else {
+        // 无选择的对话
+        this.renderNPCDialog(interaction.npcId, interaction.npcName, interaction.dialog, interaction.emotion, () => {
+          resolve();
+        });
+      }
+    });
+  }
+
+  /**
+   * 显示剧情节点
+   */
+  private async showStoryNode(node: any): Promise<void> {
+    return new Promise((resolve) => {
+      const html = `
+        <div class="double-life-dialog">
+          <div class="dialog-box animate-slide-up">
+            <div class="dialog-text">${node.dialog}</div>
+            <div class="dialog-choices">
+              ${node.choices.map((choice: any) => `
+                <button class="choice-btn" data-choice-id="${choice.id}">${choice.text}</button>
+              `).join('')}
+            </div>
+          </div>
+          ${this.renderCharacterPortrait(node.emotion, 'right')}
+        </div>
+      `;
+      this.showOverlay(html);
+
+      // 绑定选择事件
+      document.querySelectorAll('.choice-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const choiceId = (e.currentTarget as HTMLElement).dataset.choiceId;
+          const choice = node.choices.find((c: any) => c.id === choiceId);
+          if (choice) {
+            // 应用效果
+            if (choice.effects.followers) this.playerData.addFollowers(choice.effects.followers);
+            if (choice.effects.kindness) this.playerData.addKindness(choice.effects.kindness);
+            if (choice.effects.integrity) this.playerData.addIntegrity(choice.effects.integrity);
+            if (choice.effects.sanity) this.playerData.addSanity(choice.effects.sanity);
+            if (choice.effects.money) this.playerData.addIncome(choice.effects.money);
+            if (choice.effects.npcRelation) {
+              this.playerData.addNPCRelation(
+                choice.effects.npcRelation.npcId as any,
+                choice.effects.npcRelation.change
+              );
+            }
+            if (choice.effects.personaIntegrity) {
+              this.playerData.addPersonaIntegrity(choice.effects.personaIntegrity);
+            }
+
+            // 记录选择
+            this.playerData.recordStoryChoice(node.id, choice.id);
+            gameLogger.logStoryChoice(node, choice);
+
+            // 检查是否生成热搜
+            if (node.isMajor && Math.random() < 0.7) {
+              const hotSearch = this.hotSearchSystem.generateFromStoryNode(node);
+              if (hotSearch) {
+                gameLogger.logHotSearch(hotSearch);
+                this.hideOverlay();
+                this.renderHotSearch(hotSearch, () => {
+                  resolve();
+                });
+                return;
+              }
+            }
+
+            this.hideOverlay();
+            resolve();
+          }
+        });
+      });
+    });
+  }
+
+  /**
+   * 显示随机事件
+   */
+  private async showRandomEvent(event: any): Promise<void> {
+    return new Promise((resolve) => {
+      const html = `
+        <div class="double-life-dialog">
+          <div class="dialog-box animate-slide-up">
+            <div class="dialog-text">${event.dialog}</div>
+            <div class="dialog-choices">
+              ${event.choices.map((choice: any) => `
+                <button class="choice-btn" data-choice-id="${choice.id}">${choice.text}</button>
+              `).join('')}
+            </div>
+          </div>
+          ${this.renderCharacterPortrait(event.emotion, 'right')}
+        </div>
+      `;
+      this.showOverlay(html);
+
+      // 绑定选择事件
+      document.querySelectorAll('.choice-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const choiceId = (e.currentTarget as HTMLElement).dataset.choiceId;
+          const choice = event.choices.find((c: any) => c.id === choiceId);
+          if (choice) {
+            // 应用效果
+            if (choice.effects.followers) this.playerData.addFollowers(choice.effects.followers);
+            if (choice.effects.kindness) this.playerData.addKindness(choice.effects.kindness);
+            if (choice.effects.integrity) this.playerData.addIntegrity(choice.effects.integrity);
+            if (choice.effects.sanity) this.playerData.addSanity(choice.effects.sanity);
+            if (choice.effects.money) this.playerData.addIncome(choice.effects.money);
+            if (choice.effects.failCount) this.playerData.incrementFailCount();
+            if (choice.effects.personaIntegrity) {
+              this.playerData.addPersonaIntegrity(choice.effects.personaIntegrity);
+            }
+
+            gameLogger.logRandomEventChoice(event, choice);
+
+            // 检查是否生成热搜
+            if (choice.hotSearchChance && Math.random() < choice.hotSearchChance) {
+              const hotSearch = this.hotSearchSystem.generate(event.id);
+              if (hotSearch) {
+                gameLogger.logHotSearch(hotSearch);
+                this.hideOverlay();
+                this.renderHotSearch(hotSearch, () => {
+                  resolve();
+                });
+                return;
+              }
+            }
+
+            this.hideOverlay();
+            resolve();
+          }
+        });
+      });
+    });
+  }
+
+  /**
+   * 处理双面人生结局
+   */
+  private async handleDoubleLifeEnding(): Promise<void> {
+    const ending = this.endingSystem.determineEnding();
+    gameLogger.logEnding(ending);
+
+    // 显示结局
+    await new Promise<void>((resolve) => {
+      this.renderEnding(ending, () => {
+        resolve();
+      });
+    });
+
+    // 显示滚动报幕
+    this.creditsSystem.play(ending, () => {
+      // 返回开始界面
+      this.stateManager.changeScene('start');
     });
   }
 
@@ -2772,6 +3060,344 @@ export class Game {
       this.playerData.reset();
       this.aiService.clearCache();
       this.stateManager.reset();
+    });
+  }
+
+  // ==================== 双面人生模式新方法 ====================
+
+  /**
+   * 渲染每日开场独白
+   */
+  renderDailyOpening(day: number, onComplete: () => void): void {
+    const state = this.playerData.getState();
+    const survival = this.playerData.getSurvivalSystem?.() || { getSurvivalSummary: () => '一切正常' };
+
+    // 根据天数和状态生成开场白
+    let monologue = '';
+    let emotion = 'happy';
+
+    if (day === 1) {
+      monologue = '（揉眼睛）新的一天开始了...今天是我做主播的第1天，希望能有个好开始！';
+      emotion = 'happy';
+    } else if (state.sanity < 30) {
+      monologue = '（疲惫地叹气）又是新的一天...我感觉自己快撑不住了...';
+      emotion = 'tired';
+    } else if (state.survival.rentDue > 5) {
+      monologue = `（焦虑地看手机）房租已经拖欠${state.survival.rentDue}天了，房东随时可能来赶人...`;
+      emotion = 'nervous';
+    } else if (state.followers > 100000) {
+      monologue = `（看着粉丝数微笑）已经有${PlayerData.formatNumber(state.followers)}粉丝了，但为什么我还是觉得空虚...`;
+      emotion = 'smile';
+    } else {
+      const openings = [
+        '（伸懒腰）新的一天，继续加油！',
+        '（看着窗外）又是充满希望的一天。',
+        '（给自己打气）今天也要努力直播！',
+        '（喝口水）准备好迎接今天的挑战了。',
+      ];
+      monologue = openings[Math.floor(Math.random() * openings.length)];
+      emotion = 'happy';
+    }
+
+    const html = `
+      <div class="daily-opening">
+        <div class="monologue-box animate-slide-up">
+          <div class="day-indicator">Day ${day}</div>
+          <div class="monologue-text">${monologue}</div>
+          <div style="margin-top: 24px; font-size: 0.9rem; color: #888;">
+            ${survival.getSurvivalSummary?.() || ''}
+          </div>
+        </div>
+        ${this.renderCharacterPortrait(emotion, 'right')}
+      </div>
+    `;
+
+    this.showOverlay(html);
+
+    // 3秒后自动继续
+    setTimeout(() => {
+      this.hideOverlay();
+      onComplete();
+    }, 3000);
+  }
+
+  /**
+   * 渲染剧情事件
+   */
+  renderStoryNode(node: import('../events/StoryNodes').StoryNode, onChoice: (choice: import('../events/StoryNodes').StoryChoice) => void): void {
+    const html = `
+      <div class="double-life-dialog">
+        <div class="dialog-box animate-slide-up">
+          <div class="dialog-text">${node.dialog}</div>
+          <div class="dialog-choices">
+            ${node.choices.map(choice => `
+              <button class="choice-btn" data-choice-id="${choice.id}">
+                ${choice.text}
+              </button>
+            `).join('')}
+          </div>
+        </div>
+        ${this.renderCharacterPortrait(node.emotion, 'right')}
+      </div>
+    `;
+
+    this.showOverlay(html);
+
+    // 绑定选择事件
+    const buttons = document.querySelectorAll('.choice-btn');
+    buttons.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const choiceId = (e.currentTarget as HTMLElement).dataset.choiceId;
+        const choice = node.choices.find(c => c.id === choiceId);
+        if (choice) {
+          this.hideOverlay();
+          onChoice(choice);
+        }
+      });
+    });
+  }
+
+  /**
+   * 渲染NPC对话
+   */
+  renderNPCDialog(npcId: string, npcName: string, dialog: string, emotion: string, onComplete: () => void): void {
+    const npcEmojis: Record<string, string> = {
+      landlady: '👵',
+      kexin: '👩',
+      mom: '👩‍🦳',
+      doudou: '🐕',
+      yueya: '👸',
+      harasser: '👨',
+    };
+
+    const html = `
+      <div class="double-life-dialog">
+        <div class="npc-portrait">${npcEmojis[npcId] || '👤'}</div>
+        <div class="dialog-box animate-slide-up">
+          <div class="dialog-speaker">${npcName}</div>
+          <div class="dialog-text">${dialog}</div>
+          <button class="choice-btn" id="npc-dialog-continue" style="margin-top: 16px;">
+            继续
+          </button>
+        </div>
+        ${this.renderCharacterPortrait(emotion, 'right')}
+      </div>
+    `;
+
+    this.showOverlay(html);
+
+    document.getElementById('npc-dialog-continue')?.addEventListener('click', () => {
+      this.hideOverlay();
+      onComplete();
+    });
+  }
+
+  /**
+   * 渲染生存危机事件
+   */
+  renderSurvivalCrisis(crisis: import('../systems/SurvivalSystem').SurvivalCrisis, onComplete: () => void): void {
+    const alertClass = crisis.level === 'critical' ? 'critical' : 'warning';
+
+    const html = `
+      <div class="survival-alert ${alertClass}">
+        ⚠️ ${crisis.message}
+      </div>
+    `;
+
+    this.showOverlay(html);
+
+    setTimeout(() => {
+      this.hideOverlay();
+      onComplete();
+    }, 3000);
+  }
+
+  /**
+   * 渲染热搜
+   */
+  renderHotSearch(hotSearch: import('../systems/HotSearchSystem').HotSearchItem, onComplete: () => void): void {
+    const html = `
+      <div class="hotsearch-card animate-slide-up">
+        <div class="hotsearch-rank">🔥 微博热搜 ${hotSearch.rank > 3 ? `第${hotSearch.rank}位` : 'TOP ' + hotSearch.rank}</div>
+        <div class="hotsearch-keyword">${hotSearch.keyword}</div>
+        <div class="hotsearch-heat">热度：${import('../systems/HotSearchSystem').HotSearchSystem.formatHeat(hotSearch.heat)}</div>
+        <div class="hotsearch-comment">"${hotSearch.hotComment}"</div>
+      </div>
+    `;
+
+    this.showOverlay(html);
+
+    setTimeout(() => {
+      this.hideOverlay();
+      onComplete();
+    }, 4000);
+  }
+
+  /**
+   * 渲染结局
+   */
+  renderEnding(ending: import('../systems/EndingSystem').EndingResult, onComplete: () => void): void {
+    const html = `
+      <div class="ending-scene">
+        <div class="ending-title">${ending.name}</div>
+        <div class="ending-description">${ending.description}</div>
+        <div class="ending-truth">"${ending.truth}"</div>
+        <div class="ending-epilogue">${ending.epilogue}</div>
+        <button id="ending-continue" class="choice-btn" style="margin-top: 40px; padding: 16px 40px;">
+          查看制作名单
+        </button>
+      </div>
+    `;
+
+    this.showOverlay(html);
+
+    document.getElementById('ending-continue')?.addEventListener('click', () => {
+      this.hideOverlay();
+      onComplete();
+    });
+  }
+
+  /**
+   * 渲染角色立绘
+   */
+  private renderCharacterPortrait(emotion: string, position: 'left' | 'right'): string {
+    const emotionMap: Record<string, string> = {
+      'positive': 'happy',
+      'happy': 'smile',
+      'nervous': 'nervous',
+      'scared': 'scared',
+      'angry': 'angry',
+      'disgusted': 'disgusted',
+      'embarrassed': 'embarrassed',
+      'panicked': 'panicked',
+      'playful': 'playful',
+      'tired': 'smile',
+      'sad': 'scared',
+      'confident': 'happy',
+      'default': 'smile',
+    };
+
+    const expression = emotionMap[emotion] || 'smile';
+    const positionClass = position === 'left' ? 'left' : 'right';
+
+    return `
+      <div class="character-portrait ${positionClass}">
+        <img src="./portraits/${expression}.png" 
+             alt="小爱"
+             onerror="this.style.display='none'; this.parentElement.innerHTML='<div style=\\'font-size:100px;text-align:center;line-height:350px;\\'>👩</div>';">
+      </div>
+    `;
+  }
+
+  /**
+   * 显示遮罩层
+   */
+  private showOverlay(html: string): void {
+    // 移除已有的遮罩
+    const existingOverlay = document.getElementById('double-life-overlay');
+    if (existingOverlay) {
+      existingOverlay.remove();
+    }
+
+    const overlay = document.createElement('div');
+    overlay.id = 'double-life-overlay';
+    overlay.innerHTML = html;
+    document.body.appendChild(overlay);
+  }
+
+  /**
+   * 隐藏遮罩层
+   */
+  private hideOverlay(): void {
+    const overlay = document.getElementById('double-life-overlay');
+    if (overlay) {
+      overlay.remove();
+    }
+  }
+
+  /**
+   * 显示开场动画（完整立绘）
+   */
+  private async showOpeningScene(): Promise<void> {
+    return new Promise((resolve) => {
+      const html = `
+        <div id="opening-scene" style="
+          position: fixed;
+          inset: 0;
+          background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+          z-index: 1000;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          animation: fadeIn 1s ease;
+        ">
+          <!-- 完整立绘 -->
+          <div style="
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            padding: 40px;
+          ">
+            <img src="./portraits/character-full.png" 
+                  alt="小爱"
+                  style="
+                    max-height: 70vh;
+                    max-width: 100%;
+                    object-fit: contain;
+                    filter: drop-shadow(0 10px 40px rgba(0,0,0,0.5));
+                    animation: slideUp 1s ease 0.3s both;
+                  "
+                  onerror="this.style.display='none'; this.parentElement.innerHTML='<div style=\\'font-size:150px;text-align:center;animation:slideUp 1s ease 0.3s both;\\'>👩</div>';">
+          </div>
+          
+          <!-- 标题和介绍 -->
+          <div style="
+            text-align: center;
+            color: white;
+            padding: 0 40px 60px;
+            animation: fadeIn 1s ease 0.8s both;
+          ">
+            <h1 style="font-size: 2.5rem; margin-bottom: 16px; color: #f49d25;">主播模拟器：双面人生</h1>
+            <p style="font-size: 1.1rem; color: #a0a0a0; max-width: 600px; line-height: 1.6;">
+              20天的直播生涯，在虚拟与现实之间寻找真实的自己
+            </p>
+            <p style="font-size: 0.9rem; color: #666; margin-top: 20px;">
+              点击任意处继续...
+            </p>
+          </div>
+          
+          <style>
+            @keyframes fadeIn {
+              from { opacity: 0; }
+              to { opacity: 1; }
+            }
+            @keyframes slideUp {
+              from { opacity: 0; transform: translateY(50px); }
+              to { opacity: 1; transform: translateY(0); }
+            }
+          </style>
+        </div>
+      `;
+
+      // 显示开场
+      const openingDiv = document.createElement('div');
+      openingDiv.innerHTML = html;
+      document.body.appendChild(openingDiv);
+
+      // 点击继续
+      const handleClick = () => {
+        openingDiv.remove();
+        document.removeEventListener('click', handleClick);
+        resolve();
+      };
+
+      // 3秒后或点击后继续
+      setTimeout(() => {
+        document.addEventListener('click', handleClick);
+      }, 1000);
     });
   }
 }

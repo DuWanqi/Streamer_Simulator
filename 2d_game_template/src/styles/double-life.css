@@ -1,0 +1,437 @@
+/**
+ * 双面人生模式样式
+ * 简洁对话框风格，预留美术替换空间
+ */
+
+/* ==================== CSS变量（方便美术替换）==================== */
+:root {
+  /* 主色调 */
+  --primary-color: #6366f1;
+  --primary-light: #818cf8;
+  --primary-dark: #4f46e5;
+
+  /* 背景色 */
+  --bg-primary: #1a1a2e;
+  --bg-secondary: #16213e;
+  --bg-dialog: rgba(255, 255, 255, 0.95);
+  --bg-overlay: rgba(0, 0, 0, 0.7);
+
+  /* 文字色 */
+  --text-primary: #ffffff;
+  --text-secondary: #a0a0a0;
+  --text-dialog: #333333;
+  --text-accent: #f49d25;
+
+  /* 数值颜色 */
+  --color-hp: #ef4444;
+  --color-sanity: #8b5cf6;
+  --color-money: #f59e0b;
+  --color-kindness: #10b981;
+  --color-integrity: #3b82f6;
+
+  /* 立绘路径 */
+  --portrait-path: 'prepared_assets/半身像/';
+  --full-body-path: 'prepared_assets/白毛1.3.png';
+
+  /* 尺寸 */
+  --dialog-height: 180px;
+  --dialog-width: 80%;
+  --portrait-width: 280px;
+  --portrait-height: 350px;
+
+  /* 字体 */
+  --font-primary: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif;
+  --font-dialog: inherit;
+}
+
+/* ==================== 对话框场景 ==================== */
+.double-life-dialog {
+  position: fixed;
+  inset: 0;
+  background: var(--bg-overlay);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 40px;
+  z-index: 100;
+}
+
+/* 立绘容器 */
+.character-portrait {
+  position: absolute;
+  bottom: 200px;
+  width: var(--portrait-width);
+  height: var(--portrait-height);
+  z-index: 101;
+}
+
+.character-portrait.right {
+  right: 5%;
+}
+
+.character-portrait.left {
+  left: 5%;
+}
+
+.character-portrait img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 20px rgba(0, 0, 0, 0.3));
+}
+
+/* NPC立绘（使用emoji或简单图形） */
+.npc-portrait {
+  position: absolute;
+  bottom: 200px;
+  left: 5%;
+  width: 200px;
+  height: 200px;
+  z-index: 101;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 120px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  backdrop-filter: blur(10px);
+}
+
+/* 对话框 */
+.dialog-box {
+  width: var(--dialog-width);
+  max-width: 900px;
+  background: var(--bg-dialog);
+  border-radius: 16px;
+  padding: 24px 32px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  z-index: 102;
+}
+
+.dialog-speaker {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--primary-color);
+  margin-bottom: 8px;
+}
+
+.dialog-text {
+  font-size: 1.15rem;
+  line-height: 1.6;
+  color: var(--text-dialog);
+  margin-bottom: 20px;
+}
+
+/* 选项按钮 */
+.dialog-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.choice-btn {
+  padding: 14px 20px;
+  background: rgba(99, 102, 241, 0.1);
+  border: 2px solid transparent;
+  border-radius: 8px;
+  text-align: left;
+  font-size: 1rem;
+  color: var(--text-dialog);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.choice-btn:hover {
+  background: rgba(99, 102, 241, 0.2);
+  border-color: var(--primary-color);
+  transform: translateX(4px);
+}
+
+.choice-btn:active {
+  transform: translateX(2px);
+}
+
+/* ==================== 独白场景 ==================== */
+.monologue-scene {
+  position: fixed;
+  inset: 0;
+  background: var(--bg-overlay);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.monologue-box {
+  max-width: 700px;
+  padding: 40px;
+  background: var(--bg-dialog);
+  border-radius: 20px;
+  text-align: center;
+}
+
+.monologue-text {
+  font-size: 1.3rem;
+  line-height: 1.8;
+  color: var(--text-dialog);
+  font-style: italic;
+}
+
+/* ==================== 数值显示 ==================== */
+.stats-panel {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(10px);
+  padding: 16px 20px;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 50;
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+
+.stat-icon {
+  width: 20px;
+  text-align: center;
+}
+
+.stat-value {
+  font-weight: 600;
+}
+
+.stat-value.sanity { color: var(--color-sanity); }
+.stat-value.money { color: var(--color-money); }
+.stat-value.kindness { color: var(--color-kindness); }
+.stat-value.integrity { color: var(--color-integrity); }
+
+/* ==================== 热搜卡片 ==================== */
+.hotsearch-card {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: linear-gradient(135deg, #ff6b6b, #ee5a6f);
+  padding: 32px 40px;
+  border-radius: 20px;
+  text-align: center;
+  color: white;
+  box-shadow: 0 20px 60px rgba(238, 90, 111, 0.4);
+  z-index: 200;
+  max-width: 500px;
+}
+
+.hotsearch-rank {
+  font-size: 0.9rem;
+  opacity: 0.9;
+  margin-bottom: 8px;
+}
+
+.hotsearch-keyword {
+  font-size: 1.8rem;
+  font-weight: bold;
+  margin-bottom: 12px;
+}
+
+.hotsearch-heat {
+  font-size: 1.2rem;
+  margin-bottom: 16px;
+}
+
+.hotsearch-comment {
+  font-size: 1rem;
+  opacity: 0.9;
+  font-style: italic;
+}
+
+/* ==================== 结局展示 ==================== */
+.ending-scene {
+  position: fixed;
+  inset: 0;
+  background: var(--bg-primary);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  z-index: 300;
+  text-align: center;
+}
+
+.ending-title {
+  font-size: 2.5rem;
+  font-weight: bold;
+  color: var(--text-accent);
+  margin-bottom: 24px;
+}
+
+.ending-description {
+  font-size: 1.2rem;
+  color: var(--text-primary);
+  max-width: 700px;
+  line-height: 1.8;
+  margin-bottom: 32px;
+}
+
+.ending-truth {
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+  font-style: italic;
+  max-width: 600px;
+  padding: 24px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  border-left: 4px solid var(--primary-color);
+}
+
+.ending-epilogue {
+  font-size: 1rem;
+  color: var(--text-secondary);
+  max-width: 700px;
+  line-height: 1.8;
+  margin-top: 32px;
+}
+
+/* ==================== 生存状态提示 ==================== */
+.survival-alert {
+  position: fixed;
+  top: 100px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  z-index: 150;
+  animation: slide-down 0.3s ease;
+}
+
+.survival-alert.warning {
+  background: rgba(245, 158, 11, 0.9);
+  color: white;
+}
+
+.survival-alert.critical {
+  background: rgba(239, 68, 68, 0.9);
+  color: white;
+}
+
+@keyframes slide-down {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* ==================== 每日开场 ==================== */
+.daily-opening {
+  position: fixed;
+  inset: 0;
+  background: var(--bg-overlay);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.day-indicator {
+  font-size: 4rem;
+  font-weight: bold;
+  color: var(--text-accent);
+  margin-bottom: 24px;
+  text-shadow: 0 4px 20px rgba(244, 157, 37, 0.5);
+}
+
+/* ==================== 响应式适配 ==================== */
+@media (max-width: 768px) {
+  :root {
+    --dialog-width: 95%;
+    --portrait-width: 200px;
+    --portrait-height: 250px;
+  }
+
+  .character-portrait {
+    bottom: 160px;
+  }
+
+  .character-portrait.right {
+    right: 2%;
+  }
+
+  .character-portrait.left {
+    left: 2%;
+  }
+
+  .dialog-box {
+    padding: 16px 20px;
+  }
+
+  .dialog-text {
+    font-size: 1rem;
+  }
+
+  .choice-btn {
+    padding: 12px 16px;
+    font-size: 0.9rem;
+  }
+
+  .stats-panel {
+    top: 10px;
+    right: 10px;
+    padding: 12px 16px;
+  }
+}
+
+/* ==================== 动画效果 ==================== */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease;
+}
+
+.animate-slide-up {
+  animation: slide-up 0.4s ease;
+}
+
+.animate-pulse {
+  animation: pulse 2s infinite;
+}

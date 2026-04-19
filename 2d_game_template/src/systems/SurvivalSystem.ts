@@ -1,203 +1,227 @@
 /**
- * 生存支付系统
- * 管理每日支出、收入、生存危机
+ * 生存支付系统 - 管理房租、水电、食物、网费
+ * 
+ * 根据设计案第4章：现实生存支付系统
  */
 
-import { logger } from '../core/DebugLogger';
-import { 
-  PlayerState, 
-  DAILY_EXPENSES,
-  NPCRelations 
-} from '../data/Types';
-
-export interface DailyResult {
-  expenses: number;
-  income: number;
-  balance: number;
-  crisis?: SurvivalCrisis;
-}
+import type { PlayerData } from '../game/PlayerData';
+import { DAILY_EXPENSES, SURVIVAL_THRESHOLDS } from '../game/GameConfig';
 
 export interface SurvivalCrisis {
-  type: 'rent' | 'utilities' | 'food' | 'internet' | 'eviction';
-  description: string;
+  type: 'rent' | 'utilities' | 'food' | 'internet';
+  level: 'warning' | 'critical';
+  message: string;
   effects: {
-    stamina?: number;
-    followers?: number;
-    canLivestream?: boolean;
+    canStream?: boolean;
+    sanityPenalty?: number;
+    followerPenalty?: number;
   };
 }
 
-export class SurvivalSystem {
-  private state: PlayerState;
+export interface DailySurvivalResult {
+  expenses: {
+    rent: number;
+    utilities: number;
+    food: number;
+    internet: number;
+    total: number;
+  };
+  paid: boolean;
+  crisis?: SurvivalCrisis;
+  messages: string[];
+}
 
-  constructor(state: PlayerState) {
-    this.state = state;
+export class SurvivalSystem {
+  private playerData: PlayerData;
+
+  constructor(playerData: PlayerData) {
+    this.playerData = playerData;
   }
 
   /**
-   * 处理每日结算
+   * 处理每日生存支付
+   * 每天扣除固定支出，检查生存危机
    */
-  processDaily(): DailyResult {
-    logger.info('SurvivalSystem', 'Processing daily survival', { day: this.state.day });
+  processDaily(): DailySurvivalResult {
+    const state = this.playerData.getState();
+    const messages: string[] = [];
+    let crisis: SurvivalCrisis | undefined;
 
-    // 1. 计算支出
-    const expenses = this.calculateExpenses();
+    // 计算每日支出
+    const expenses = { ...DAILY_EXPENSES };
     
-    // 2. 计算收入
-    const income = this.calculateIncome();
-    
-    // 3. 更新金钱
-    const oldMoney = this.state.money;
-    this.state.money += income - expenses;
-    
-    logger.info('SurvivalSystem', 'Daily balance updated', {
-      oldMoney,
-      newMoney: this.state.money,
-      income,
-      expenses
-    });
+    // 检查是否有足够资金支付
+    const canPay = state.income >= expenses.total;
 
-    // 4. 检查生存危机
-    const crisis = this.checkCrisis();
+    if (canPay) {
+      // 扣除费用
+      this.playerData.addIncome(-expenses.total);
+      messages.push(`今日支出：房租¥${expenses.rent}、水电¥${expenses.utilities}、食物¥${expenses.food}、网费¥${expenses.internet}`);
+      
+      // 重置拖欠天数
+      this.resetSurvivalState();
+    } else {
+      // 资金不足，开始拖欠
+      messages.push('资金不足，无法支付今日费用！');
+      this.handleUnpaidExpenses(expenses, messages);
+    }
 
-    // 5. 更新生存状态
-    this.updateSurvivalStatus(expenses);
+    // 检查生存危机
+    crisis = this.checkSurvivalCrisis();
+    if (crisis) {
+      messages.push(crisis.message);
+      this.applyCrisisEffects(crisis);
+    }
 
     return {
       expenses,
-      income,
-      balance: this.state.money,
-      crisis
+      paid: canPay,
+      crisis,
+      messages,
     };
   }
 
   /**
-   * 计算每日支出
+   * 处理拖欠费用
    */
-  private calculateExpenses(): number {
-    let total = 0;
+  private handleUnpaidExpenses(expenses: typeof DAILY_EXPENSES, messages: string[]): void {
+    const state = this.playerData.getState();
 
-    DAILY_EXPENSES.forEach(expense => {
-      // 检查是否拖欠
-      const dueDays = this.getDueDays(expense.name);
-      
-      if (dueDays >= expense.overdueDays) {
-        // 已经触发危机，不扣费但记录
-        logger.warn('SurvivalSystem', `${expense.name} crisis active`, { dueDays });
-      } else {
-        total += expense.amount;
-      }
-    });
+    // 优先支付网费（直播必需）
+    if (state.income >= expenses.internet) {
+      this.playerData.addIncome(-expenses.internet);
+      this.playerData.updateSurvival('internetDue', -state.survival.internetDue);
+      messages.push('勉强支付了网费，可以正常直播');
+    } else {
+      this.playerData.updateSurvival('internetDue', 1);
+      messages.push('网费拖欠，网络可能不稳定');
+    }
 
-    return total;
+    // 然后支付食物
+    if (state.income >= expenses.food) {
+      this.playerData.addIncome(-expenses.food);
+      this.playerData.updateSurvival('foodDays', -state.survival.foodDays);
+      messages.push('买了些便宜的食物');
+    } else {
+      this.playerData.updateSurvival('foodDays', 1);
+      messages.push('没钱买食物，只能饿着');
+    }
+
+    // 水电费
+    if (state.income >= expenses.utilities) {
+      this.playerData.addIncome(-expenses.utilities);
+      this.playerData.updateSurvival('utilitiesDue', -state.survival.utilitiesDue);
+    } else {
+      this.playerData.updateSurvival('utilitiesDue', 1);
+    }
+
+    // 房租（优先级最低，因为可以拖欠最久）
+    if (state.income >= expenses.rent) {
+      this.playerData.addIncome(-expenses.rent);
+      this.playerData.updateSurvival('rentDue', -state.survival.rentDue);
+    } else {
+      this.playerData.updateSurvival('rentDue', 1);
+      messages.push(`房租拖欠第${state.survival.rentDue + 1}天`);
+    }
   }
 
   /**
-   * 计算每日收入
+   * 重置生存状态（支付成功后）
    */
-  private calculateIncome(): number {
-    let total = 0;
-
-    // 1. 直播打赏收入
-    const livestreamIncome = this.calculateLivestreamIncome();
-    total += livestreamIncome;
-
-    // 2. 品牌合作（随机触发）
-    if (this.state.followers > 10000 && Math.random() < 0.3) {
-      const brandIncome = 5000 + Math.random() * 45000;
-      total += Math.floor(brandIncome);
-      logger.info('SurvivalSystem', 'Brand deal income', { amount: brandIncome });
-    }
-
-    // 3. 带货分成（如果有）
-    // TODO: 实现带货系统
-
-    logger.info('SurvivalSystem', 'Daily income calculated', {
-      livestream: livestreamIncome,
-      total
-    });
-
-    return Math.floor(total);
-  }
-
-  /**
-   * 计算直播打赏收入
-   */
-  private calculateLivestreamIncome(): number {
-    // 基础收入 = 人气值 * 系数
-    const baseMultiplier = 0.1 + Math.random() * 0.4; // 0.1 ~ 0.5
-    const income = this.state.followers * baseMultiplier;
-    
-    // 精神状态影响收入
-    let sanityMultiplier = 1;
-    if (this.state.sanity < 30) {
-      // 精神崩溃时收入增加（猎奇效应）
-      sanityMultiplier = 1.5;
-    } else if (this.state.sanity > 80) {
-      // 太正常反而没人看
-      sanityMultiplier = 0.7;
-    }
-
-    return Math.floor(income * sanityMultiplier);
+  private resetSurvivalState(): void {
+    this.playerData.updateSurvival('rentDue', -this.playerData.getState().survival.rentDue);
+    this.playerData.updateSurvival('utilitiesDue', -this.playerData.getState().survival.utilitiesDue);
+    this.playerData.updateSurvival('foodDays', -this.playerData.getState().survival.foodDays);
+    this.playerData.updateSurvival('internetDue', -this.playerData.getState().survival.internetDue);
   }
 
   /**
    * 检查生存危机
    */
-  private checkCrisis(): SurvivalCrisis | undefined {
-    const { survival } = this.state;
+  private checkSurvivalCrisis(): SurvivalCrisis | undefined {
+    const state = this.playerData.getState();
+    const { survival } = state;
 
-    // 1. 被驱逐（房租拖欠10天）
-    if (survival.rentDue >= 10) {
-      return {
-        type: 'eviction',
-        description: '你被房东赶出了出租屋，无家可归',
-        effects: {
-          canLivestream: false
-        }
-      };
-    }
-
-    // 2. 断水断电（水电拖欠3天）
-    if (survival.utilitiesDue >= 3) {
-      return {
-        type: 'utilities',
-        description: '水电被切断，无法正常生活',
-        effects: {
-          stamina: -10,
-          canLivestream: false
-        }
-      };
-    }
-
-    // 3. 断网（网费拖欠1天）
-    if (survival.internetDue >= 1) {
-      return {
-        type: 'internet',
-        description: '网络被切断，无法直播',
-        effects: {
-          canLivestream: false
-        }
-      };
-    }
-
-    // 4. 饥饿（2天没吃）
-    if (survival.foodDays >= 2) {
-      return {
-        type: 'food',
-        description: '你已经饿得前胸贴后背了',
-        effects: {
-          stamina: -20
-        }
-      };
-    }
-
-    // 5. 房租催缴（7天）
-    if (survival.rentDue >= 7) {
+    // 房租危机
+    if (survival.rentDue >= SURVIVAL_THRESHOLDS.rent.critical) {
       return {
         type: 'rent',
-        description: '房东下达最后通牒，再不交房租就要被赶出去',
-        effects: {}
+        level: 'critical',
+        message: '房东下达最后通牒：今晚必须搬走！',
+        effects: {
+          canStream: false,
+          sanityPenalty: 30,
+          followerPenalty: 5000,
+        },
+      };
+    }
+    if (survival.rentDue >= SURVIVAL_THRESHOLDS.rent.warning) {
+      return {
+        type: 'rent',
+        level: 'warning',
+        message: '房东警告：再拖欠就要断水断电了！',
+        effects: {
+          sanityPenalty: 10,
+        },
+      };
+    }
+
+    // 水电危机
+    if (survival.utilitiesDue >= SURVIVAL_THRESHOLDS.utilities.critical) {
+      return {
+        type: 'utilities',
+        level: 'critical',
+        message: '断水断电！无法正常生活',
+        effects: {
+          canStream: false,
+          sanityPenalty: 20,
+        },
+      };
+    }
+    if (survival.utilitiesDue >= SURVIVAL_THRESHOLDS.utilities.warning) {
+      return {
+        type: 'utilities',
+        level: 'warning',
+        message: '水电费拖欠，供应不稳定',
+        effects: {
+          sanityPenalty: 5,
+        },
+      };
+    }
+
+    // 食物危机
+    if (survival.foodDays >= SURVIVAL_THRESHOLDS.food.critical) {
+      return {
+        type: 'food',
+        level: 'critical',
+        message: '已经两天没吃东西了，头晕眼花...',
+        effects: {
+          sanityPenalty: 15,
+          followerPenalty: 1000,
+        },
+      };
+    }
+    if (survival.foodDays >= SURVIVAL_THRESHOLDS.food.warning) {
+      return {
+        type: 'food',
+        level: 'warning',
+        message: '肚子好饿...今天没吃东西',
+        effects: {
+          sanityPenalty: 5,
+        },
+      };
+    }
+
+    // 网费危机
+    if (survival.internetDue >= SURVIVAL_THRESHOLDS.internet.critical) {
+      return {
+        type: 'internet',
+        level: 'critical',
+        message: '网络已断开！无法直播',
+        effects: {
+          canStream: false,
+          followerPenalty: 2000,
+        },
       };
     }
 
@@ -205,199 +229,98 @@ export class SurvivalSystem {
   }
 
   /**
-   * 更新生存状态
+   * 应用危机效果
    */
-  private updateSurvivalStatus(expenses: number): void {
-    const { survival, money } = this.state;
-
-    // 如果钱不够支付全部费用，记录拖欠
-    if (money < 0) {
-      // 按优先级记录拖欠
-      let remainingDebt = -money;
-
-      // 房租（最高优先级）
-      if (remainingDebt > 0) {
-        survival.rentDue++;
-        remainingDebt -= 100;
-      }
-
-      // 水电
-      if (remainingDebt > 0) {
-        survival.utilitiesDue++;
-        remainingDebt -= 20;
-      }
-
-      // 食物
-      if (remainingDebt > 0) {
-        survival.foodDays++;
-        remainingDebt -= 30;
-      }
-
-      // 网费
-      if (remainingDebt > 0) {
-        survival.internetDue++;
-        remainingDebt -= 10;
-      }
-    } else {
-      // 有钱支付，重置拖欠天数
-      survival.rentDue = 0;
-      survival.utilitiesDue = 0;
-      survival.foodDays = 0;
-      survival.internetDue = 0;
+  private applyCrisisEffects(crisis: SurvivalCrisis): void {
+    if (crisis.effects.sanityPenalty) {
+      this.playerData.addSanity(-crisis.effects.sanityPenalty);
     }
-
-    logger.info('SurvivalSystem', 'Survival status updated', { survival });
-  }
-
-  /**
-   * 获取拖欠天数
-   */
-  private getDueDays(expenseName: string): number {
-    const { survival } = this.state;
-    
-    switch (expenseName) {
-      case '房租': return survival.rentDue;
-      case '水电费': return survival.utilitiesDue;
-      case '食物': return survival.foodDays;
-      case '网费': return survival.internetDue;
-      default: return 0;
+    if (crisis.effects.followerPenalty) {
+      this.playerData.addFollowers(-crisis.effects.followerPenalty);
     }
   }
 
   /**
-   * 外出打工赚钱
+   * 检查是否可以直播
    */
-  workPartTime(): { success: boolean; earnings: number; message: string } {
-    const earnings = 100;
-    this.state.money += earnings;
-    this.state.stamina -= 30;
-    this.state.followers -= 1000; // 没时间直播，掉粉
+  canStream(): { canStream: boolean; reason?: string } {
+    const state = this.playerData.getState();
+    const { survival } = state;
 
-    logger.info('SurvivalSystem', 'Part-time work completed', { earnings });
-
-    return {
-      success: true,
-      earnings,
-      message: `你外出打工赚了${earnings}元，但体力消耗很大，粉丝也流失了一些`
-    };
-  }
-
-  /**
-   * 恳求延期支付
-   */
-  requestExtension(npcRelations: NPCRelations): { success: boolean; message: string } {
-    // 需要房东好感度≥40或诚信值>60
-    if (npcRelations.landlady >= 40 || this.state.integrity > 60) {
-      this.state.survival.rentDue = Math.max(0, this.state.survival.rentDue - 3);
-      
-      logger.info('SurvivalSystem', 'Extension granted');
-      
-      return {
-        success: true,
-        message: '房东同意给你延期3天'
-      };
+    // 断网无法直播
+    if (survival.internetDue >= SURVIVAL_THRESHOLDS.internet.critical) {
+      return { canStream: false, reason: '网络已断开，无法直播' };
     }
 
-    return {
-      success: false,
-      message: '房东拒绝了你的请求'
-    };
-  }
+    // 断水断电无法直播（设备没电）
+    if (survival.utilitiesDue >= SURVIVAL_THRESHOLDS.utilities.critical) {
+      return { canStream: false, reason: '断水断电，设备无法运行' };
+    }
 
-  /**
-   * 直播借钱
-   */
-  livestreamForDonations(): { success: boolean; amount: number; message: string } {
-    const baseAmount = 500;
-    const randomBonus = Math.floor(Math.random() * 1000);
-    const totalAmount = baseAmount + randomBonus;
+    // 被驱逐无法直播
+    if (survival.rentDue >= SURVIVAL_THRESHOLDS.rent.critical) {
+      return { canStream: false, reason: '已被房东驱逐，无处直播' };
+    }
 
-    this.state.money += totalAmount;
-    this.state.integrity -= 5; // 诚信值下降
-
-    logger.info('SurvivalSystem', 'Livestream donations received', { amount: totalAmount });
-
-    return {
-      success: true,
-      amount: totalAmount,
-      message: `粉丝们给你打赏了${totalAmount}元，但有人质疑你在卖惨`
-    };
+    return { canStream: true };
   }
 
   /**
    * 获取生存状态摘要
    */
-  getSurvivalSummary(): {
-    dailyExpenses: number;
-    currentMoney: number;
-    daysUntilCrisis: Record<string, number>;
-    canLivestream: boolean;
-  } {
-    const { survival, money } = this.state;
+  getSurvivalSummary(): string {
+    const state = this.playerData.getState();
+    const { survival } = state;
+    const parts: string[] = [];
 
-    return {
-      dailyExpenses: 160,
-      currentMoney: money,
-      daysUntilCrisis: {
-        eviction: Math.max(0, 10 - survival.rentDue),
-        utilities: Math.max(0, 3 - survival.utilitiesDue),
-        food: Math.max(0, 2 - survival.foodDays),
-        internet: Math.max(0, 1 - survival.internetDue)
-      },
-      canLivestream: survival.internetDue < 1 && survival.utilitiesDue < 3
-    };
+    if (survival.rentDue > 0) {
+      parts.push(`房租拖欠${survival.rentDue}天`);
+    }
+    if (survival.utilitiesDue > 0) {
+      parts.push(`水电拖欠${survival.utilitiesDue}天`);
+    }
+    if (survival.foodDays > 0) {
+      parts.push(`未进食${survival.foodDays}天`);
+    }
+    if (survival.internetDue > 0) {
+      parts.push(`网费拖欠${survival.internetDue}天`);
+    }
+
+    return parts.length > 0 ? parts.join('，') : '一切正常';
   }
 
   /**
-   * 强制支付某项费用（用于玩家主动选择）
+   * 支付特定费用（用于事件中的选择）
    */
-  forcePayExpense(expenseName: string): { success: boolean; message: string } {
-    const expense = DAILY_EXPENSES.find(e => e.name === expenseName);
-    if (!expense) {
-      return { success: false, message: '未知的费用类型' };
+  payExpense(type: 'rent' | 'utilities' | 'food' | 'internet', amount: number): boolean {
+    const state = this.playerData.getState();
+    
+    if (state.income < amount) {
+      return false;
     }
 
-    if (this.state.money >= expense.amount) {
-      this.state.money -= expense.amount;
-      
-      // 重置对应的拖欠天数
-      switch (expenseName) {
-        case '房租':
-          this.state.survival.rentDue = 0;
-          break;
-        case '水电费':
-          this.state.survival.utilitiesDue = 0;
-          break;
-        case '食物':
-          this.state.survival.foodDays = 0;
-          this.state.stamina = Math.min(100, this.state.stamina + 20);
-          break;
-        case '网费':
-          this.state.survival.internetDue = 0;
-          break;
-      }
+    this.playerData.addIncome(-amount);
+    
+    const survivalKey = {
+      rent: 'rentDue',
+      utilities: 'utilitiesDue',
+      food: 'foodDays',
+      internet: 'internetDue',
+    } as const;
 
-      logger.info('SurvivalSystem', `Paid ${expenseName}`, { amount: expense.amount });
-
-      return {
-        success: true,
-        message: `支付了${expenseName} ${expense.amount}元`
-      };
+    // 清除拖欠状态
+    const currentDue = state.survival[survivalKey[type]];
+    if (currentDue > 0) {
+      this.playerData.updateSurvival(survivalKey[type], -currentDue);
     }
 
-    return {
-      success: false,
-      message: '余额不足'
-    };
+    return true;
   }
-}
 
-// 单例导出
-let survivalSystemInstance: SurvivalSystem | null = null;
-
-export function getSurvivalSystem(state: PlayerState): SurvivalSystem {
-  if (!survivalSystemInstance || survivalSystemInstance['state'] !== state) {
-    survivalSystemInstance = new SurvivalSystem(state);
+  /**
+   * 获取每日支出金额
+   */
+  getDailyExpenses(): typeof DAILY_EXPENSES {
+    return { ...DAILY_EXPENSES };
   }
-  return survivalSystemInstance;
 }

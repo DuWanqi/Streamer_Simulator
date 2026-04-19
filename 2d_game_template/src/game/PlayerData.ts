@@ -4,7 +4,26 @@
 
 import { STAGES, ATTRIBUTES, INITIAL_VALUES, MAX_UPGRADES_PER_DAY, type StreamCategory, type AttributeType, type StageInfo } from './GameConfig';
 
+// NPC关系类型
+export interface NPCRelations {
+  landlady: number;  // 房东太太
+  kexin: number;     // 可心
+  mom: number;       // 妈妈
+  doudou: number;    // 豆豆
+  yueya: number;     // 月牙儿
+  harasser: number;  // 猥琐男
+}
+
+// 生存支付状态
+export interface SurvivalState {
+  rentDue: number;       // 房租拖欠天数
+  utilitiesDue: number;  // 水电拖欠天数
+  foodDays: number;      // 连续未吃食物天数
+  internetDue: number;   // 网费拖欠天数
+}
+
 export interface PlayerState {
+  // 原有字段
   followers: number;
   fanClub: number;
   income: number;
@@ -24,6 +43,24 @@ export interface PlayerState {
   skillPoints: number;
   unlockedNodes: string[];
   totalSkillPointsEarned: number;
+  
+  // 双面人生新增字段
+  sanity: number;              // 精神值 0-100
+  personaIntegrity: number;    // 人设完整度 0-100
+  kindness: number;            // 善良值 0-100
+  integrity: number;           // 诚信值 0-100
+  failCount: number;           // 翻车次数
+  
+  // NPC好感度
+  npcRelations: NPCRelations;
+  
+  // 生存支付状态
+  survival: SurvivalState;
+  
+  // 游戏记录
+  trendingTopics: string[];                    // 热搜历史
+  storyChoices: Record<string, string>;        // 剧情节点选择记录
+  dailyEventsLog: string[];                    // 每日事件日志
 }
 
 export class PlayerData {
@@ -36,6 +73,7 @@ export class PlayerData {
 
   private createInitialState(): PlayerState {
     return {
+      // 原有字段
       followers: INITIAL_VALUES.followers,
       fanClub: INITIAL_VALUES.fanClub,
       income: INITIAL_VALUES.income,
@@ -55,6 +93,36 @@ export class PlayerData {
       skillPoints: 20,
       unlockedNodes: [],
       totalSkillPointsEarned: 20,
+      
+      // 双面人生新增字段 - 初始值
+      sanity: 80,                    // 精神值初始80
+      personaIntegrity: 100,         // 人设完整度初始100
+      kindness: 50,                  // 善良值初始50
+      integrity: 50,                 // 诚信值初始50
+      failCount: 0,                  // 翻车次数初始0
+      
+      // NPC好感度初始值（根据设计案）
+      npcRelations: {
+        landlady: 30,    // 房东太太初始30
+        kexin: 80,       // 可心初始80
+        mom: 40,         // 妈妈初始40
+        doudou: 0,       // 豆豆初始0（第6天才会遇到）
+        yueya: 20,       // 月牙儿初始20
+        harasser: 10,    // 猥琐男初始10
+      },
+      
+      // 生存支付状态初始值
+      survival: {
+        rentDue: 0,       // 房租不拖欠
+        utilitiesDue: 0,  // 水电不拖欠
+        foodDays: 0,      // 没有连续不吃
+        internetDue: 0,   // 网费不拖欠
+      },
+      
+      // 游戏记录初始值
+      trendingTopics: [],
+      storyChoices: {},
+      dailyEventsLog: [],
     };
   }
 
@@ -279,6 +347,98 @@ export class PlayerData {
     };
     
     return Math.max(viewers, minViewers[stageId] || 10);
+  }
+
+  // 双面人生新增方法
+  
+  /**
+   * 修改精神值
+   */
+  addSanity(amount: number): void {
+    this.state.sanity = Math.max(0, Math.min(100, this.state.sanity + amount));
+    this.notify();
+  }
+  
+  /**
+   * 修改人设完整度
+   */
+  addPersonaIntegrity(amount: number): void {
+    this.state.personaIntegrity = Math.max(0, Math.min(100, this.state.personaIntegrity + amount));
+    this.notify();
+  }
+  
+  /**
+   * 修改善良值
+   */
+  addKindness(amount: number): void {
+    this.state.kindness = Math.max(0, Math.min(100, this.state.kindness + amount));
+    this.notify();
+  }
+  
+  /**
+   * 修改诚信值
+   */
+  addIntegrity(amount: number): void {
+    this.state.integrity = Math.max(0, Math.min(100, this.state.integrity + amount));
+    this.notify();
+  }
+  
+  /**
+   * 增加翻车次数
+   */
+  incrementFailCount(): void {
+    this.state.failCount++;
+    this.notify();
+  }
+  
+  /**
+   * 修改NPC好感度
+   */
+  addNPCRelation(npcId: keyof NPCRelations, amount: number): void {
+    this.state.npcRelations[npcId] = Math.max(0, Math.min(100, this.state.npcRelations[npcId] + amount));
+    this.notify();
+  }
+  
+  /**
+   * 获取NPC好感度
+   */
+  getNPCRelation(npcId: keyof NPCRelations): number {
+    return this.state.npcRelations[npcId];
+  }
+  
+  /**
+   * 修改生存支付状态
+   */
+  updateSurvival(type: keyof SurvivalState, amount: number): void {
+    this.state.survival[type] = Math.max(0, this.state.survival[type] + amount);
+    this.notify();
+  }
+  
+  /**
+   * 添加热搜
+   */
+  addTrendingTopic(topic: string): void {
+    this.state.trendingTopics.push(topic);
+    if (this.state.trendingTopics.length > 10) {
+      this.state.trendingTopics.shift(); // 只保留最近10条
+    }
+    this.notify();
+  }
+  
+  /**
+   * 记录剧情选择
+   */
+  recordStoryChoice(nodeId: string, choiceId: string): void {
+    this.state.storyChoices[nodeId] = choiceId;
+    this.notify();
+  }
+  
+  /**
+   * 添加每日事件日志
+   */
+  addDailyEventLog(event: string): void {
+    this.state.dailyEventsLog.push(`Day ${this.state.currentDay}: ${event}`);
+    this.notify();
   }
 
   onChange(listener: () => void): () => void {
