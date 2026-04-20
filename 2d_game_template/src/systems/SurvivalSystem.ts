@@ -138,7 +138,7 @@ export class SurvivalSystem {
   /**
    * 检查生存危机
    */
-  private checkSurvivalCrisis(): SurvivalCrisis | undefined {
+  checkSurvivalCrisis(): SurvivalCrisis | undefined {
     const state = this.playerData.getState();
     const { survival } = state;
 

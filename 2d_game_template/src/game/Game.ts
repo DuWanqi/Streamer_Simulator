@@ -774,85 +774,61 @@ export class Game {
   }
 
   private dailyEventsShown: boolean = false;
+  private pendingStoryEvents: boolean = false;
 
   /**
-   * 检查并显示每日事件（开场独白、NPC对话、生存危机等）
+   * 统一的每日事件入口
+   * 在 main_hub 渲染时触发，处理所有剧情/NPC/随机事件。
+   * 事件作为直播前的互动展示，展示完毕后玩家仍可正常直播。
    */
   private async checkAndShowDailyEvents(): Promise<void> {
-    console.log('[DEBUG] checkAndShowDailyEvents 被调用, dailyEventsShown:', this.dailyEventsShown);
-    if (this.dailyEventsShown) {
-      console.log('[DEBUG] 每日事件已显示过，跳过');
-      return;
-    }
+    if (this.dailyEventsShown) return;
     this.dailyEventsShown = true;
 
     const state = this.playerData.getState();
     const day = state.currentDay;
-    console.log('[DEBUG] 当前天数:', day);
 
     // 1. 显示每日开场独白
-    console.log('[DEBUG] 准备显示每日开场');
     await this.showDailyOpening();
-    console.log('[DEBUG] 每日开场显示完成');
 
-    // 2. 检查生存危机
-    console.log('[DEBUG] 检查生存危机');
-    const survivalResult = this.survivalSystem.processDaily();
-    console.log('[DEBUG] 生存危机结果:', survivalResult);
-    if (survivalResult.crisis) {
+    // 2. 检查生存危机（仅显示警告，不在此扣款——扣款在 daily_summary）
+    const survivalCrisis = this.survivalSystem.checkSurvivalCrisis();
+    if (survivalCrisis) {
       await this.renderDialogScene({
-        text: survivalResult.crisis.message,
+        text: survivalCrisis.message,
         speaker: '系统提示',
         emotion: 'nervous'
       });
     }
 
-    // 3. 检查NPC对话
-    console.log('[DEBUG] 检查NPC对话');
-    await this.checkAndShowNPCDialog(day);
-    console.log('[DEBUG] NPC对话检查完成');
-  }
-
-  /**
-   * 检查并显示NPC对话
-   */
-  private async checkAndShowNPCDialog(day: number): Promise<void> {
-    const npcDialogs: Record<number, { id: string; name: string; text: string; emoji: string }> = {
-      1: {
-        id: 'landlady',
-        name: '房东太太',
-        text: '小姑娘，房租是每月3000，按天算就是每天100。\n别忘了按时交租，不然...你懂的。',
-        emoji: '👵'
-      },
-      3: {
-        id: 'kexin',
-        name: '可心',
-        text: '嗨！我是可心，刚搬来隔壁。\n听说你也是主播？以后多多关照啦！',
-        emoji: '👩'
-      },
-      6: {
-        id: 'doudou',
-        name: '豆豆',
-        text: '汪汪！（你发现了一只受伤的流浪狗）\n它看起来很饿，要不要收养它？',
-        emoji: '🐕'
-      }
-    };
-
-    const dialog = npcDialogs[day];
-    if (dialog) {
-      await this.renderDialogScene(
-        {
-          text: dialog.text,
-          speaker: dialog.name,
-          emotion: 'smile'
-        },
-        {
-          id: dialog.id,
-          name: dialog.name,
-          emoji: dialog.emoji
-        }
+    // 3. NPC日常互动（使用 NPCSystem，替代旧的硬编码 checkAndShowNPCDialog）
+    const npcEvent = this.npcSystem.checkDailyInteraction(day);
+    if (npcEvent && npcEvent.interaction) {
+      gameLogger.logNPCInteraction(
+        npcEvent.npcId,
+        npcEvent.interaction.npcName,
+        npcEvent.interaction.dialog,
+        npcEvent.interaction.emotion
       );
+      await this.showNPCDialog(npcEvent.interaction);
     }
+
+    // 4. 主线剧情节点
+    const storyNode = getStoryNodeByDay(day, state);
+    if (storyNode) {
+      gameLogger.logStoryEvent(storyNode);
+      await this.showStoryNode(storyNode);
+    }
+
+    // 5. 随机事件（30%概率，仅在无主线剧情时触发）
+    if (!storyNode && Math.random() < 0.3) {
+      const randomEvent = getRandomEvent();
+      gameLogger.logRandomEvent(randomEvent);
+      await this.showRandomEvent(randomEvent);
+    }
+
+    // 标记事件已处理完毕，玩家可以正常操作
+    this.pendingStoryEvents = false;
   }
 
   private pendingToastMessage: string | null = null;
@@ -2181,21 +2157,21 @@ export class Game {
     const fanClubChange = Math.round((3 + Math.random() * 17) * base);
     const incomeChange = Math.round((200 + Math.random() * 1300) * base);
 
+    // 每日生存开销
+    const dailyExpenses = { rent: 100, utilities: 20, food: 30, internet: 10 };
+    const totalExpense = dailyExpenses.rent + dailyExpenses.utilities + dailyExpenses.food + dailyExpenses.internet;
+
     // 应用变化
     this.playerData.addFollowers(followerChange);
     this.playerData.addFanClub(fanClubChange);
     this.playerData.addIncome(incomeChange);
     this.playerData.addExp(50 + Math.round(Math.random() * 50));
 
+    // 实际扣除每日生存开销
+    this.playerData.addIncome(-totalExpense);
+
     // 获取生存系统状态
     const survivalState = state.survival || { rentDue: 0, utilitiesDue: 0, foodDays: 0, internetDue: 0 };
-    const dailyExpenses = {
-      rent: 100,
-      utilities: 20,
-      food: 30,
-      internet: 10
-    };
-    const totalExpense = dailyExpenses.rent + dailyExpenses.utilities + dailyExpenses.food + dailyExpenses.internet;
 
     const html = `
       <div class="daily-summary" style="
@@ -2327,60 +2303,17 @@ export class Game {
       }
       
       // 双面人生每日流程
-      await this.handleDoubleLifeDailyFlow();
+      this.handleDoubleLifeDailyFlow();
     });
   }
 
   /**
    * 双面人生每日流程
+   * 简化：仅重置每日事件标志，然后进入直播策划。
+   * 所有剧情/NPC/随机/生存事件统一在 main_hub 的 checkAndShowDailyEvents 中处理。
    */
-  private async handleDoubleLifeDailyFlow(): Promise<void> {
-    // 重置每日事件标志，确保每天都能触发开场和NPC对话
+  private handleDoubleLifeDailyFlow(): void {
     this.dailyEventsShown = false;
-    
-    const state = this.playerData.getState();
-    const day = state.currentDay;
-    
-    gameLogger.logDailyOpening(day, '开始新的一天', 'happy');
-
-    // 1. 处理生存支付
-    const survivalResult = this.survivalSystem.processDaily();
-    gameLogger.logSurvivalStatus(survivalResult.expenses, survivalResult.paid, survivalResult.crisis);
-    
-    if (survivalResult.crisis) {
-      // 显示生存危机
-      await this.showSurvivalCrisis(survivalResult.crisis);
-    }
-
-    // 2. 检查NPC互动
-    const npcEvent = this.npcSystem.checkDailyInteraction(day);
-    if (npcEvent && npcEvent.interaction) {
-      gameLogger.logNPCInteraction(
-        npcEvent.npcId,
-        npcEvent.interaction.npcName,
-        npcEvent.interaction.dialog,
-        npcEvent.interaction.emotion
-      );
-      await this.showNPCDialog(npcEvent.interaction);
-    }
-
-    // 3. 检查剧情节点
-    const storyNode = getStoryNodeByDay(day, state);
-    if (storyNode) {
-      gameLogger.logStoryEvent(storyNode);
-      await this.showStoryNode(storyNode);
-      return; // 剧情节点处理完后进入下一天
-    }
-
-    // 4. 随机事件（30%概率）
-    if (Math.random() < 0.3) {
-      const randomEvent = getRandomEvent();
-      gameLogger.logRandomEvent(randomEvent);
-      await this.showRandomEvent(randomEvent);
-      return;
-    }
-
-    // 5. 正常进入直播策划
     this.stateManager.changeScene('stream_planning');
   }
 
