@@ -1,59 +1,85 @@
 /**
- * 双面人生模式样式
- * 横板对话UI风格，预留美术替换空间
+ * 双面人生模式样式 — 商业级视觉小说风格
+ * 横板对话UI，玻璃拟态 + 渐变 + 微动效
  */
 
-/* ==================== CSS变量（方便美术替换）==================== */
+/* ==================== CSS变量 ==================== */
 :root {
   /* 主色调 */
   --primary-color: #6366f1;
   --primary-light: #818cf8;
   --primary-dark: #4f46e5;
+  --accent-gold: #f49d25;
+  --accent-pink: #f4258c;
 
   /* 背景色 */
   --bg-primary: #1a1a2e;
   --bg-secondary: #16213e;
-  --bg-dialog: rgba(0, 0, 0, 0.85);
+  --bg-dialog: rgba(15, 15, 35, 0.92);
   --bg-overlay: rgba(0, 0, 0, 0.7);
+  --bg-glass: rgba(255, 255, 255, 0.06);
+  --bg-glass-hover: rgba(255, 255, 255, 0.12);
 
   /* 文字色 */
   --text-primary: #ffffff;
-  --text-secondary: #a0a0a0;
-  --text-dialog: #ffffff;
+  --text-secondary: #94a3b8;
+  --text-dim: #64748b;
+  --text-dialog: #e2e8f0;
   --text-accent: #f49d25;
 
   /* 数值颜色 */
   --color-hp: #ef4444;
-  --color-sanity: #8b5cf6;
-  --color-money: #f59e0b;
-  --color-kindness: #10b981;
-  --color-integrity: #3b82f6;
+  --color-sanity: #a78bfa;
+  --color-money: #fbbf24;
+  --color-kindness: #34d399;
+  --color-integrity: #60a5fa;
 
   /* 立绘路径 */
   --portrait-path: './portraits/';
   --full-body-path: './portraits/character-full.png';
 
   /* 尺寸 */
-  --dialog-height: 200px;
+  --dialog-height: 220px;
   --dialog-width: 80%;
   --portrait-width: 300px;
-  --portrait-height: 400px;
+  --portrait-height: 420px;
+
+  /* 圆角 */
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
 
   /* 字体 */
-  --font-primary: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif;
-  --font-dialog: inherit;
+  --font-primary: 'Plus Jakarta Sans', 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif;
+  --font-dialog: var(--font-primary);
 }
 
-/* ==================== 横板对话场景 ==================== */
+/* ==================== 对话场景覆盖层 ==================== */
 .dialog-scene {
   position: fixed;
   inset: 0;
-  background: var(--bg-overlay);
   z-index: 100;
   overflow: hidden;
+  animation: dl-scene-in 0.4s ease-out;
 }
 
-/* 主角立绘 - 右侧 */
+@keyframes dl-scene-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* 暗角效果 */
+.dialog-scene::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.4) 100%);
+  pointer-events: none;
+  z-index: 99;
+}
+
+/* ==================== 主角立绘 - 右侧 ==================== */
 .character-portrait {
   position: absolute;
   bottom: var(--dialog-height);
@@ -64,16 +90,20 @@
   display: flex;
   align-items: flex-end;
   justify-content: center;
+  filter: drop-shadow(0 8px 32px rgba(0, 0, 0, 0.6));
+  transition: filter 0.3s ease;
 }
 
 .character-portrait img {
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
-  filter: drop-shadow(0 4px 20px rgba(0, 0, 0, 0.5));
 }
 
-/* NPC立绘 - 左侧 */
+.character-portrait.right { right: 5%; }
+.character-portrait.left { left: 5%; }
+
+/* ==================== NPC立绘 - 左侧 ==================== */
 .npc-portrait {
   position: absolute;
   bottom: var(--dialog-height);
@@ -82,7 +112,7 @@
   height: var(--portrait-height);
   z-index: 101;
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: center;
 }
 
@@ -90,83 +120,143 @@
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
-  filter: drop-shadow(0 4px 20px rgba(0, 0, 0, 0.5));
+  filter: drop-shadow(0 8px 32px rgba(0, 0, 0, 0.6));
 }
 
-/* NPC立绘（使用emoji回退） */
+/* NPC emoji 回退 - 玻璃拟态圆形 */
 .npc-portrait.emoji-fallback {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.08);
   border-radius: 50%;
-  backdrop-filter: blur(10px);
-  font-size: 120px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  font-size: 110px;
   align-items: center;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
-/* 对话框 - 底部 */
+/* ==================== 对话框 - 底部玻璃拟态 ==================== */
 .dialog-box {
   position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
-  height: var(--dialog-height);
-  background: var(--bg-dialog);
-  padding: 24px 40px;
+  min-height: var(--dialog-height);
+  background: linear-gradient(180deg, rgba(15, 15, 35, 0.88) 0%, rgba(15, 15, 35, 0.96) 100%);
+  backdrop-filter: blur(24px) saturate(1.4);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  padding: 28px 48px 32px;
   display: flex;
   flex-direction: column;
   z-index: 102;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.3);
 }
 
 .dialog-speaker {
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--text-accent);
-  margin-bottom: 12px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--accent-gold);
+  margin-bottom: 10px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
 .dialog-text {
   flex: 1;
-  font-size: 1.2rem;
-  line-height: 1.7;
+  font-size: 1.15rem;
+  line-height: 1.8;
   color: var(--text-dialog);
   overflow-y: auto;
+  font-family: var(--font-dialog);
+  white-space: pre-line;
 }
 
-/* 选项按钮容器 */
+/* ==================== 选项按钮 ==================== */
 .dialog-choices {
   display: flex;
-  flex-direction: row;
-  gap: 12px;
-  margin-top: 16px;
-  flex-wrap: wrap;
-  justify-content: center;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 20px;
+  max-width: 600px;
+  align-self: center;
+  width: 100%;
 }
 
 .choice-btn {
-  padding: 12px 24px;
-  background: rgba(255, 255, 255, 0.1);
-  border: 2px solid transparent;
-  border-radius: 8px;
-  text-align: center;
-  font-size: 1rem;
+  padding: 14px 28px;
+  background: var(--bg-glass);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-md);
+  text-align: left;
+  font-size: 0.95rem;
   color: var(--text-dialog);
   cursor: pointer;
-  transition: all 0.2s ease;
-  flex: 1;
-  min-width: 150px;
-  max-width: 250px;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  font-family: var(--font-primary);
+  position: relative;
+  overflow: hidden;
+  animation: dl-choice-in 0.4s ease-out backwards;
+}
+
+.choice-btn:nth-child(1) { animation-delay: 0.05s; }
+.choice-btn:nth-child(2) { animation-delay: 0.1s; }
+.choice-btn:nth-child(3) { animation-delay: 0.15s; }
+.choice-btn:nth-child(4) { animation-delay: 0.2s; }
+
+@keyframes dl-choice-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.choice-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(244, 157, 37, 0.15), rgba(244, 37, 140, 0.1));
+  opacity: 0;
+  transition: opacity 0.25s ease;
 }
 
 .choice-btn:hover {
-  background: rgba(244, 157, 37, 0.2);
-  border-color: var(--text-accent);
-  transform: translateY(-2px);
+  background: var(--bg-glass-hover);
+  border-color: rgba(244, 157, 37, 0.4);
+  transform: translateX(4px);
+  box-shadow: 0 4px 20px rgba(244, 157, 37, 0.15);
+}
+
+.choice-btn:hover::before {
+  opacity: 1;
 }
 
 .choice-btn:active {
-  transform: translateY(0);
+  transform: translateX(2px) scale(0.98);
 }
 
-/* ==================== 独白场景（只有主角）==================== */
+/* 选项前的序号 */
+.choice-btn .choice-index {
+  display: inline-block;
+  width: 22px;
+  height: 22px;
+  line-height: 22px;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  margin-right: 12px;
+  color: var(--text-secondary);
+}
+
+/* ==================== 独白场景 ==================== */
 .monologue-scene {
   position: fixed;
   inset: 0;
@@ -175,15 +265,17 @@
   overflow: hidden;
 }
 
-/* ==================== 数值显示 ==================== */
+/* ==================== 数值显示面板 ==================== */
 .stats-panel {
   position: fixed;
   top: 20px;
   right: 20px;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(10px);
+  background: rgba(15, 15, 35, 0.8);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   padding: 16px 20px;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -198,15 +290,8 @@
   color: var(--text-primary);
 }
 
-.stat-icon {
-  width: 20px;
-  text-align: center;
-}
-
-.stat-value {
-  font-weight: 600;
-}
-
+.stat-icon { width: 20px; text-align: center; }
+.stat-value { font-weight: 600; }
 .stat-value.sanity { color: var(--color-sanity); }
 .stat-value.money { color: var(--color-money); }
 .stat-value.kindness { color: var(--color-kindness); }
@@ -219,36 +304,51 @@
   left: 50%;
   transform: translate(-50%, -50%);
   background: linear-gradient(135deg, #ff6b6b, #ee5a6f);
-  padding: 32px 40px;
-  border-radius: 20px;
+  padding: 36px 44px;
+  border-radius: var(--radius-xl);
   text-align: center;
   color: white;
   box-shadow: 0 20px 60px rgba(238, 90, 111, 0.4);
   z-index: 200;
   max-width: 500px;
+  animation: dl-card-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes dl-card-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
 }
 
 .hotsearch-rank {
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   opacity: 0.9;
   margin-bottom: 8px;
+  letter-spacing: 0.05em;
 }
 
 .hotsearch-keyword {
   font-size: 1.8rem;
-  font-weight: bold;
+  font-weight: 800;
   margin-bottom: 12px;
 }
 
 .hotsearch-heat {
-  font-size: 1.2rem;
+  font-size: 1.1rem;
   margin-bottom: 16px;
+  opacity: 0.85;
 }
 
 .hotsearch-comment {
-  font-size: 1rem;
-  opacity: 0.9;
+  font-size: 0.95rem;
+  opacity: 0.85;
   font-style: italic;
+  line-height: 1.6;
 }
 
 /* ==================== 结局展示 ==================== */
@@ -267,8 +367,8 @@
 
 .ending-title {
   font-size: 2.5rem;
-  font-weight: bold;
-  color: var(--text-accent);
+  font-weight: 800;
+  color: var(--accent-gold);
   margin-bottom: 24px;
 }
 
@@ -287,7 +387,7 @@
   max-width: 600px;
   padding: 24px;
   background: rgba(255, 255, 255, 0.05);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   border-left: 4px solid var(--primary-color);
 }
 
@@ -302,27 +402,33 @@
 /* ==================== 生存状态提示 ==================== */
 .survival-alert {
   position: fixed;
-  top: 100px;
+  top: 80px;
   left: 50%;
   transform: translateX(-50%);
-  padding: 12px 24px;
-  border-radius: 8px;
+  padding: 14px 28px;
+  border-radius: var(--radius-md);
   font-size: 0.95rem;
   z-index: 150;
-  animation: slide-down 0.3s ease;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  animation: dl-slide-down 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  font-weight: 600;
+  letter-spacing: 0.02em;
 }
 
 .survival-alert.warning {
   background: rgba(245, 158, 11, 0.9);
   color: white;
+  box-shadow: 0 8px 24px rgba(245, 158, 11, 0.3);
 }
 
 .survival-alert.critical {
   background: rgba(239, 68, 68, 0.9);
   color: white;
+  box-shadow: 0 8px 24px rgba(239, 68, 68, 0.3);
 }
 
-@keyframes slide-down {
+@keyframes dl-slide-down {
   from {
     opacity: 0;
     transform: translateX(-50%) translateY(-20px);
@@ -337,8 +443,10 @@
 .daily-opening {
   position: fixed;
   inset: 0;
-  background: var(--bg-overlay);
+  background: linear-gradient(135deg, rgba(26, 26, 46, 0.95), rgba(22, 33, 62, 0.95));
+  backdrop-filter: blur(8px);
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   z-index: 100;
@@ -346,90 +454,80 @@
 
 .day-indicator {
   font-size: 4rem;
-  font-weight: bold;
-  color: var(--text-accent);
-  margin-bottom: 24px;
-  text-shadow: 0 4px 20px rgba(244, 157, 37, 0.5);
+  font-weight: 800;
+  color: var(--accent-gold);
+  margin-bottom: 12px;
+  text-shadow: 0 4px 24px rgba(244, 157, 37, 0.4);
+}
+
+/* ==================== 开场叙事 ==================== */
+.opening-scene {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  overflow: hidden;
+  font-family: var(--font-primary);
+}
+
+.opening-step-indicator {
+  position: absolute;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 10px;
+  z-index: 10003;
+}
+
+.opening-step-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  transition: all 0.3s ease;
+}
+
+.opening-step-dot.active {
+  background: var(--accent-gold);
+  box-shadow: 0 0 12px rgba(244, 157, 37, 0.5);
+  transform: scale(1.2);
+}
+
+/* ==================== double-life-dialog 兼容（旧的类名）==================== */
+.double-life-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  overflow: hidden;
+  background: linear-gradient(180deg, rgba(26, 26, 46, 0.95) 0%, rgba(15, 15, 35, 0.98) 100%);
+  animation: dl-scene-in 0.3s ease-out;
 }
 
 /* ==================== 响应式适配 ==================== */
 @media (max-width: 768px) {
   :root {
     --dialog-width: 95%;
-    --portrait-width: 200px;
-    --portrait-height: 280px;
-    --dialog-height: 160px;
+    --portrait-width: 180px;
+    --portrait-height: 260px;
+    --dialog-height: 180px;
   }
 
-  .character-portrait {
-    right: 2%;
-    bottom: var(--dialog-height);
-  }
-
-  .npc-portrait {
-    left: 2%;
-    bottom: var(--dialog-height);
-  }
-
-  .dialog-box {
-    padding: 16px 20px;
-  }
-
-  .dialog-text {
-    font-size: 1rem;
-  }
-
-  .choice-btn {
-    padding: 10px 16px;
-    font-size: 0.9rem;
-    min-width: 120px;
-  }
-
-  .stats-panel {
-    top: 10px;
-    right: 10px;
-    padding: 12px 16px;
-  }
+  .character-portrait { right: 2%; }
+  .npc-portrait { left: 2%; }
+  .dialog-box { padding: 20px 24px 24px; }
+  .dialog-text { font-size: 1rem; }
+  .choice-btn { padding: 12px 20px; font-size: 0.9rem; }
+  .npc-portrait.emoji-fallback { font-size: 80px; }
+  .stats-panel { top: 10px; right: 10px; padding: 12px 16px; }
 }
 
-/* ==================== 动画效果 ==================== */
-@keyframes fade-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
+/* ==================== 动画工具类 ==================== */
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slide-up { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+@keyframes dl-breathe { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
 
-@keyframes slide-up {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
-}
-
-.animate-fade-in {
-  animation: fade-in 0.3s ease;
-}
-
-.animate-slide-up {
-  animation: slide-up 0.4s ease;
-}
-
-.animate-pulse {
-  animation: pulse 2s infinite;
-}
+.animate-fade-in { animation: fade-in 0.3s ease; }
+.animate-slide-up { animation: slide-up 0.4s ease; }
+.animate-pulse { animation: pulse 2s infinite; }
+.animate-breathe { animation: dl-breathe 3s ease-in-out infinite; }

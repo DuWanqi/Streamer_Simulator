@@ -2329,174 +2329,192 @@ export class Game {
   }
 
   /**
-   * 显示NPC对话
+   * 统一的对话/事件渲染方法
+   * 所有剧情、NPC、随机事件共用一个视觉风格
    */
-  private async showNPCDialog(interaction: any): Promise<void> {
+  private async renderUnifiedDialog(config: {
+    speaker?: string;
+    text: string;
+    emotion?: string;
+    choices?: any[];
+    npcId?: string;
+    npcEmoji?: string;
+    npcName?: string;
+    onChoiceSelect?: (choice: any) => void;
+    showContinue?: boolean;
+  }): Promise<string | null> {
     return new Promise((resolve) => {
-      if (interaction.choices && interaction.choices.length > 0) {
-        // 有选择的对话
-        const html = `
-          <div class="double-life-dialog">
-            <div class="npc-portrait">${this.npcSystem.getNPCPortrait(interaction.npcId)}</div>
-            <div class="dialog-box animate-slide-up">
-              <div class="dialog-speaker">${interaction.npcName}</div>
-              <div class="dialog-text">${interaction.dialog}</div>
-              <div class="dialog-choices">
-                ${interaction.choices.map((choice: any) => `
-                  <button class="choice-btn" data-choice-id="${choice.id}">${choice.text}</button>
-                `).join('')}
-              </div>
-            </div>
-            ${this.renderCharacterPortrait(interaction.emotion, 'right')}
-          </div>
-        `;
-        this.showOverlay(html);
+      const state = this.playerData.getState();
+      const isDaytime = !state.hasFinishedUpgrade;
+      const bgUrl = isDaytime ? this.dayBgUrl : this.nightBgUrl;
 
-        // 绑定选择事件
-        document.querySelectorAll('.choice-btn').forEach(btn => {
+      const npcEmojiMap: Record<string, string> = {
+        landlady: '👵', kexin: '👩', mom: '👩‍🦳',
+        doudou: '🐕', yueya: '👸', harasser: '👨',
+      };
+      const emotionMap: Record<string, string> = {
+        positive: 'happy', happy: 'smile', nervous: 'nervous',
+        scared: 'scared', angry: 'angry', disgusted: 'disgusted',
+        embarrassed: 'embarrassed', panicked: 'panicked',
+        playful: 'playful', tired: 'smile', sad: 'scared',
+        confident: 'happy', default: 'smile', smile: 'smile',
+      };
+      const expression = emotionMap[config.emotion || 'default'] || 'smile';
+
+      const npcEmoji = config.npcEmoji || (config.npcId ? npcEmojiMap[config.npcId] : null);
+
+      const choicesHtml = config.choices?.length
+        ? `<div class="dialog-choices">
+            ${config.choices.map((c: any, i: number) => `
+              <button class="choice-btn" data-choice-id="${c.id}">
+                <span class="choice-index">${i + 1}</span>${c.text}
+              </button>`).join('')}
+           </div>`
+        : '';
+
+      const continueHtml = config.showContinue !== false && !config.choices?.length
+        ? `<div style="display:flex;justify-content:flex-end;margin-top:16px;">
+             <button id="btn-dialog-continue" style="
+               padding:10px 28px;background:linear-gradient(135deg,#f49d25,#ffb95e);
+               border:none;border-radius:20px;color:#fff;font-size:0.9rem;
+               font-weight:600;cursor:pointer;font-family:var(--font-primary);
+               transition:all 0.2s ease;box-shadow:0 4px 16px rgba(244,157,37,0.3);
+             ">继续</button>
+           </div>`
+        : '';
+
+      const html = `
+        <div class="dialog-scene" style="background-image:url('${bgUrl}');background-size:cover;background-position:center;">
+          <div style="position:absolute;inset:0;background:rgba(0,0,0,0.45);"></div>
+
+          ${npcEmoji ? `
+          <div class="npc-portrait emoji-fallback">${npcEmoji}</div>
+          ` : ''}
+
+          <div class="character-portrait right animate-breathe">
+            <img src="./portraits/${expression}.png" alt="小爱"
+                 onerror="this.style.display='none';this.parentElement.innerHTML='<div style=\\'font-size:100px;text-align:center;line-height:350px;\\'>👩</div>';">
+          </div>
+
+          <div class="dialog-box">
+            ${config.speaker ? `<div class="dialog-speaker">${config.speaker}</div>` : ''}
+            <div class="dialog-text">${config.text}</div>
+            ${choicesHtml}
+            ${continueHtml}
+          </div>
+        </div>
+      `;
+
+      this.showOverlay(html);
+
+      if (config.choices?.length) {
+        const overlay = document.getElementById('double-life-overlay');
+        const btns = overlay?.querySelectorAll('.choice-btn');
+        btns?.forEach(btn => {
           btn.addEventListener('click', (e) => {
             const choiceId = (e.currentTarget as HTMLElement).dataset.choiceId;
-            const choice = interaction.choices.find((c: any) => c.id === choiceId);
+            const choice = config.choices!.find((c: any) => c.id === choiceId);
             if (choice) {
-              this.npcSystem.applyChoiceEffects(choice, interaction.npcId);
+              if (config.onChoiceSelect) config.onChoiceSelect(choice);
               this.hideOverlay();
-              resolve();
+              resolve(choice.id || choiceId || null);
             }
           });
         });
       } else {
-        // 无选择的对话
-        this.renderNPCDialog(interaction.npcId, interaction.npcName, interaction.dialog, interaction.emotion, () => {
-          resolve();
+        document.getElementById('btn-dialog-continue')?.addEventListener('click', () => {
+          this.hideOverlay();
+          resolve(null);
         });
       }
     });
   }
 
   /**
-   * 显示剧情节点
+   * 显示NPC对话 — 走统一渲染
+   */
+  private async showNPCDialog(interaction: any): Promise<void> {
+    if (interaction.choices && interaction.choices.length > 0) {
+      await this.renderUnifiedDialog({
+        speaker: interaction.npcName,
+        text: interaction.dialog,
+        emotion: interaction.emotion,
+        npcId: interaction.npcId,
+        choices: interaction.choices,
+        onChoiceSelect: (choice) => {
+          this.npcSystem.applyChoiceEffects(choice, interaction.npcId);
+        },
+      });
+    } else {
+      await this.renderUnifiedDialog({
+        speaker: interaction.npcName,
+        text: interaction.dialog,
+        emotion: interaction.emotion,
+        npcId: interaction.npcId,
+      });
+    }
+  }
+
+  /**
+   * 显示剧情节点 — 走统一渲染
    */
   private async showStoryNode(node: any): Promise<void> {
-    return new Promise((resolve) => {
-      const html = `
-        <div class="double-life-dialog">
-          <div class="dialog-box animate-slide-up">
-            <div class="dialog-text">${node.dialog}</div>
-            <div class="dialog-choices">
-              ${node.choices.map((choice: any) => `
-                <button class="choice-btn" data-choice-id="${choice.id}">${choice.text}</button>
-              `).join('')}
-            </div>
-          </div>
-          ${this.renderCharacterPortrait(node.emotion, 'right')}
-        </div>
-      `;
-      this.showOverlay(html);
+    await this.renderUnifiedDialog({
+      text: node.dialog || node.sceneDescription || '',
+      emotion: node.emotion,
+      choices: node.choices,
+      onChoiceSelect: (choice) => {
+        if (choice.effects.followers) this.playerData.addFollowers(choice.effects.followers);
+        if (choice.effects.kindness) this.playerData.addKindness(choice.effects.kindness);
+        if (choice.effects.integrity) this.playerData.addIntegrity(choice.effects.integrity);
+        if (choice.effects.sanity) this.playerData.addSanity(choice.effects.sanity);
+        if (choice.effects.money) this.playerData.addIncome(choice.effects.money);
+        if (choice.effects.npcRelation) {
+          this.playerData.addNPCRelation(choice.effects.npcRelation.npcId as any, choice.effects.npcRelation.change);
+        }
+        if (choice.effects.personaIntegrity) this.playerData.addPersonaIntegrity(choice.effects.personaIntegrity);
 
-      // 绑定选择事件
-      document.querySelectorAll('.choice-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          const choiceId = (e.currentTarget as HTMLElement).dataset.choiceId;
-          const choice = node.choices.find((c: any) => c.id === choiceId);
-          if (choice) {
-            // 应用效果
-            if (choice.effects.followers) this.playerData.addFollowers(choice.effects.followers);
-            if (choice.effects.kindness) this.playerData.addKindness(choice.effects.kindness);
-            if (choice.effects.integrity) this.playerData.addIntegrity(choice.effects.integrity);
-            if (choice.effects.sanity) this.playerData.addSanity(choice.effects.sanity);
-            if (choice.effects.money) this.playerData.addIncome(choice.effects.money);
-            if (choice.effects.npcRelation) {
-              this.playerData.addNPCRelation(
-                choice.effects.npcRelation.npcId as any,
-                choice.effects.npcRelation.change
-              );
-            }
-            if (choice.effects.personaIntegrity) {
-              this.playerData.addPersonaIntegrity(choice.effects.personaIntegrity);
-            }
+        this.playerData.recordStoryChoice(node.id, choice.id);
+        gameLogger.logStoryChoice(node, choice);
 
-            // 记录选择
-            this.playerData.recordStoryChoice(node.id, choice.id);
-            gameLogger.logStoryChoice(node, choice);
-
-            // 检查是否生成热搜
-            if (node.isMajor && Math.random() < 0.7) {
-              const hotSearch = this.hotSearchSystem.generateFromStoryNode(node);
-              if (hotSearch) {
-                gameLogger.logHotSearch(hotSearch);
-                this.hideOverlay();
-                this.renderHotSearch(hotSearch, () => {
-                  resolve();
-                });
-                return;
-              }
-            }
-
-            this.hideOverlay();
-            resolve();
+        if (node.isMajor && Math.random() < 0.7) {
+          const hotSearch = this.hotSearchSystem.generateFromStoryNode(node);
+          if (hotSearch) {
+            gameLogger.logHotSearch(hotSearch);
+            setTimeout(() => this.renderHotSearch(hotSearch, () => {}), 300);
           }
-        });
-      });
+        }
+      },
     });
   }
 
   /**
-   * 显示随机事件
+   * 显示随机事件 — 走统一渲染
    */
   private async showRandomEvent(event: any): Promise<void> {
-    return new Promise((resolve) => {
-      const html = `
-        <div class="double-life-dialog">
-          <div class="dialog-box animate-slide-up">
-            <div class="dialog-text">${event.dialog}</div>
-            <div class="dialog-choices">
-              ${event.choices.map((choice: any) => `
-                <button class="choice-btn" data-choice-id="${choice.id}">${choice.text}</button>
-              `).join('')}
-            </div>
-          </div>
-          ${this.renderCharacterPortrait(event.emotion, 'right')}
-        </div>
-      `;
-      this.showOverlay(html);
+    await this.renderUnifiedDialog({
+      text: event.dialog || event.description || '',
+      emotion: event.emotion,
+      choices: event.choices,
+      onChoiceSelect: (choice) => {
+        if (choice.effects.followers) this.playerData.addFollowers(choice.effects.followers);
+        if (choice.effects.kindness) this.playerData.addKindness(choice.effects.kindness);
+        if (choice.effects.integrity) this.playerData.addIntegrity(choice.effects.integrity);
+        if (choice.effects.sanity) this.playerData.addSanity(choice.effects.sanity);
+        if (choice.effects.money) this.playerData.addIncome(choice.effects.money);
+        if (choice.effects.failCount) this.playerData.incrementFailCount();
+        if (choice.effects.personaIntegrity) this.playerData.addPersonaIntegrity(choice.effects.personaIntegrity);
 
-      // 绑定选择事件
-      document.querySelectorAll('.choice-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          const choiceId = (e.currentTarget as HTMLElement).dataset.choiceId;
-          const choice = event.choices.find((c: any) => c.id === choiceId);
-          if (choice) {
-            // 应用效果
-            if (choice.effects.followers) this.playerData.addFollowers(choice.effects.followers);
-            if (choice.effects.kindness) this.playerData.addKindness(choice.effects.kindness);
-            if (choice.effects.integrity) this.playerData.addIntegrity(choice.effects.integrity);
-            if (choice.effects.sanity) this.playerData.addSanity(choice.effects.sanity);
-            if (choice.effects.money) this.playerData.addIncome(choice.effects.money);
-            if (choice.effects.failCount) this.playerData.incrementFailCount();
-            if (choice.effects.personaIntegrity) {
-              this.playerData.addPersonaIntegrity(choice.effects.personaIntegrity);
-            }
+        gameLogger.logRandomEventChoice(event, choice);
 
-            gameLogger.logRandomEventChoice(event, choice);
-
-            // 检查是否生成热搜
-            if (choice.hotSearchChance && Math.random() < choice.hotSearchChance) {
-              const hotSearch = this.hotSearchSystem.generate(event.id);
-              if (hotSearch) {
-                gameLogger.logHotSearch(hotSearch);
-                this.hideOverlay();
-                this.renderHotSearch(hotSearch, () => {
-                  resolve();
-                });
-                return;
-              }
-            }
-
-            this.hideOverlay();
-            resolve();
+        if (choice.hotSearchChance && Math.random() < choice.hotSearchChance) {
+          const hotSearch = this.hotSearchSystem.generate(event.id);
+          if (hotSearch) {
+            gameLogger.logHotSearch(hotSearch);
+            setTimeout(() => this.renderHotSearch(hotSearch, () => {}), 300);
           }
-        });
-      });
+        }
+      },
     });
   }
 
@@ -3613,32 +3631,29 @@ export class Game {
    */
   private async showOpeningScene(): Promise<void> {
     return new Promise((resolve) => {
-      // 剧情步骤
       const storySteps = [
         {
-          title: '',
-          text: '你是一名普通的大学生，也是主播"小爱"的忠实粉丝。\n\n100天前，小爱突然停播，没有任何解释。\n\n今天，你收到了直播推送...',
-          emotion: '微笑',
-          isSystem: false
+          text: '你是一名普通的大学生，也是主播"小爱"的忠实粉丝。',
+          detail: '100天前，坐拥百万粉丝的小爱突然断更停播，全网哗然。有人说她被封杀了，有人说她受不了压力退网了。但你知道——她不会无缘无故消失。',
+          emotion: 'smile',
         },
         {
-          title: '',
-          text: '屏幕上，小爱的身影逐渐模糊...\n\n一阵眩晕袭来...',
-          emotion: '惊慌',
-          isSystem: false
+          text: '今天凌晨两点，你收到了一条推送——',
+          detail: '"小爱的直播间重新开播了。"\n\n你点进去，屏幕上只有一片雪花。\n\n然后，画面突然清晰了。你看到了——你自己。不，是"小爱"的眼睛，透过屏幕看着你。\n\n一股巨大的吸力将你扯进了屏幕......',
+          emotion: 'panicked',
         },
         {
-          title: '【系统提示】',
-          text: '检测到强烈执念，启动穿越程序...\n绑定角色：林小爱\n任务：走完她的人生之路，找到停播的真相',
-          emotion: '紧张',
-          isSystem: true
+          text: '【检测到强烈执念——穿越程序启动】',
+          detail: '绑定角色：林小爱（未出道版）\n时间线：直播第1天\n\n任务：走完她的人生之路。\n目标：找到她停播100天的真相。',
+          emotion: 'nervous',
+          isSystem: true,
         },
         {
-          title: '',
-          text: '你睁开眼睛，发现自己坐在简陋的出租屋里。\n\n面前是一台老旧的电脑，屏幕上显示着直播界面。\n\n这是...小爱刚起步的第1天？',
-          emotion: '紧张',
-          isSystem: false
-        }
+          text: '你睁开眼睛。',
+          detail: '一间不到10平米的出租屋。墙皮斑驳，桌上是一台老旧的笔记本电脑，旁边堆着泡面盒子和几张催缴单。\n\n电脑屏幕上，直播软件的界面正闪着光——"欢迎回来，小爱♡"\n\n这是她一切开始的地方。而现在，你，就是她。',
+          emotion: 'nervous',
+          isLast: true,
+        },
       ];
 
       let currentStep = 0;
@@ -3648,128 +3663,99 @@ export class Game {
         const isLastStep = currentStep === storySteps.length - 1;
 
         const html = `
-          <div id="opening-scene" style="
-            position: fixed;
-            inset: 0;
-            background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
-            z-index: 1000;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
+          <div id="opening-scene" class="opening-scene" style="
+            background: linear-gradient(180deg, #0d0d1a 0%, #1a1a2e 50%, #16213e 100%);
           ">
-            <!-- 完整立绘背景 -->
-            <div style="
-              position: absolute;
-              inset: 0;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              opacity: 0.3;
-            ">
-              <img src="./portraits/character-full.png" 
-                    alt="小爱"
-                    style="
-                      max-height: 90vh;
-                      max-width: 100%;
-                      object-fit: contain;
-                      filter: blur(2px) drop-shadow(0 10px 40px rgba(0,0,0,0.5));
-                    "
-                    onerror="this.style.display='none';">
+            <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;opacity:0.15;">
+              <img src="./portraits/character-full.png" alt=""
+                   style="max-height:90vh;max-width:100%;object-fit:contain;filter:blur(3px) brightness(0.7);"
+                   onerror="this.style.display='none';">
             </div>
-            
-            <!-- 对话框 -->
-            <div style="
-              position: relative;
-              z-index: 10;
-              width: 80%;
-              max-width: 700px;
-              background: rgba(0, 0, 0, 0.85);
-              border-radius: 16px;
-              padding: 32px 40px;
-              box-shadow: 0 8px 32px rgba(0,0,0,0.5);
-              animation: fadeIn 0.5s ease;
-            ">
-              ${step.title ? `<div style="color: #f49d25; font-size: 0.9rem; margin-bottom: 12px; font-weight: 600;">${step.title}</div>` : ''}
-              <div style="
-                color: white;
-                font-size: 1.2rem;
-                line-height: 1.8;
-                margin-bottom: 24px;
-                white-space: pre-line;
-              ">${step.text}</div>
-              
-              <div style="display: flex; justify-content: flex-end;">
-                <button id="btn-next-step" style="
-                  padding: 12px 32px;
-                  background: linear-gradient(135deg, #f49d25 0%, #ffb95e 100%);
-                  border: none;
-                  border-radius: 25px;
-                  color: white;
-                  font-size: 1rem;
-                  font-weight: 600;
-                  cursor: pointer;
-                  transition: all 0.3s ease;
-                ">${isLastStep ? '开始游戏' : '下一步'}</button>
+
+            <div style="position:relative;z-index:10;width:85%;max-width:680px;animation:dl-opening-in 0.6s ease-out;">
+              ${step.isSystem ? `
+              <div style="font-size:0.8rem;color:#818cf8;font-weight:700;letter-spacing:0.1em;margin-bottom:16px;
+                          text-transform:uppercase;">SYSTEM</div>
+              ` : ''}
+
+              <div style="color:#e2e8f0;font-size:1.5rem;font-weight:700;line-height:1.5;margin-bottom:16px;
+                          white-space:pre-line;">${step.text}</div>
+
+              <div style="color:#94a3b8;font-size:1.05rem;line-height:1.9;white-space:pre-line;
+                          border-left:3px solid rgba(244,157,37,0.4);padding-left:20px;margin-bottom:28px;">
+                ${step.detail || ''}
+              </div>
+
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <div style="display:flex;gap:8px;">
+                  ${storySteps.map((_, i) => `
+                    <div class="opening-step-dot ${i === currentStep ? 'active' : ''}"></div>
+                  `).join('')}
+                </div>
+                <div style="display:flex;gap:12px;align-items:center;">
+                  ${isLastStep ? '' : `
+                  <button id="btn-skip-opening" style="
+                    padding:10px 20px;background:transparent;border:1px solid rgba(255,255,255,0.15);
+                    border-radius:20px;color:rgba(255,255,255,0.5);font-size:0.85rem;cursor:pointer;
+                    font-family:var(--font-primary);transition:all 0.2s ease;
+                  ">跳过</button>
+                  `}
+                  <button id="btn-next-step" style="
+                    padding:12px 36px;
+                    background:${isLastStep
+                      ? 'linear-gradient(135deg, #f4258c 0%, #ff4d8d 100%)'
+                      : 'linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05))'};
+                    border:${isLastStep ? 'none' : '1px solid rgba(255,255,255,0.2)'};
+                    border-radius:24px;color:#fff;font-size:${isLastStep ? '1.05rem' : '0.95rem'};
+                    font-weight:600;cursor:pointer;font-family:var(--font-primary);
+                    transition:all 0.25s ease;
+                    ${isLastStep ? 'box-shadow:0 6px 24px rgba(244,37,140,0.4);' : ''}
+                  ">${isLastStep ? '开始小爱的人生' : '继续'}</button>
+                </div>
               </div>
             </div>
-            
-            <!-- 步骤指示器 -->
-            <div style="
-              position: absolute;
-              bottom: 40px;
-              display: flex;
-              gap: 8px;
-            ">
-              ${storySteps.map((_, i) => `
-                <div style="
-                  width: 8px;
-                  height: 8px;
-                  border-radius: 50%;
-                  background: ${i === currentStep ? '#f49d25' : 'rgba(255,255,255,0.3)'}"></div>
-              `).join('')}
-            </div>
-            
+
             <style>
-              @keyframes fadeIn {
-                from { opacity: 0; transform: translateY(20px); }
+              @keyframes dl-opening-in {
+                from { opacity: 0; transform: translateY(16px); }
                 to { opacity: 1; transform: translateY(0); }
               }
               #btn-next-step:hover {
-                transform: scale(1.05);
-                box-shadow: 0 8px 20px rgba(244,157,37,0.4);
+                transform: scale(1.04);
+                box-shadow: 0 6px 20px rgba(244,37,140,0.3);
+              }
+              #btn-skip-opening:hover {
+                border-color: rgba(255,255,255,0.3);
+                color: rgba(255,255,255,0.8);
               }
             </style>
           </div>
         `;
 
-        // 清除之前的内容
         const existingScene = document.getElementById('opening-scene');
-        if (existingScene) {
-          existingScene.remove();
-        }
+        if (existingScene) existingScene.remove();
 
-        // 显示当前步骤
         const sceneDiv = document.createElement('div');
         sceneDiv.innerHTML = html;
         document.body.appendChild(sceneDiv);
 
-        // 绑定按钮事件
-        const nextBtn = document.getElementById('btn-next-step');
-        if (nextBtn) {
-          nextBtn.addEventListener('click', () => {
-            if (isLastStep) {
-              sceneDiv.remove();
-              resolve();
-            } else {
-              currentStep++;
-              showStep();
-            }
-          });
-        }
+        const finish = () => {
+          sceneDiv.remove();
+          resolve();
+        };
+
+        document.getElementById('btn-next-step')?.addEventListener('click', () => {
+          if (isLastStep) {
+            finish();
+          } else {
+            currentStep++;
+            showStep();
+          }
+        });
+
+        document.getElementById('btn-skip-opening')?.addEventListener('click', finish);
       };
 
-      // 开始显示第一步
       showStep();
     });
   }
