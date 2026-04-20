@@ -1,6 +1,6 @@
 /**
  * 双面人生模式样式
- * 简洁对话框风格，预留美术替换空间
+ * 横板对话UI风格，预留美术替换空间
  */
 
 /* ==================== CSS变量（方便美术替换）==================== */
@@ -13,13 +13,13 @@
   /* 背景色 */
   --bg-primary: #1a1a2e;
   --bg-secondary: #16213e;
-  --bg-dialog: rgba(255, 255, 255, 0.95);
+  --bg-dialog: rgba(0, 0, 0, 0.85);
   --bg-overlay: rgba(0, 0, 0, 0.7);
 
   /* 文字色 */
   --text-primary: #ffffff;
   --text-secondary: #a0a0a0;
-  --text-dialog: #333333;
+  --text-dialog: #ffffff;
   --text-accent: #f49d25;
 
   /* 数值颜色 */
@@ -30,151 +30,149 @@
   --color-integrity: #3b82f6;
 
   /* 立绘路径 */
-  --portrait-path: 'prepared_assets/半身像/';
-  --full-body-path: 'prepared_assets/白毛1.3.png';
+  --portrait-path: './portraits/';
+  --full-body-path: './portraits/character-full.png';
 
   /* 尺寸 */
-  --dialog-height: 180px;
+  --dialog-height: 200px;
   --dialog-width: 80%;
-  --portrait-width: 280px;
-  --portrait-height: 350px;
+  --portrait-width: 300px;
+  --portrait-height: 400px;
 
   /* 字体 */
   --font-primary: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif;
   --font-dialog: inherit;
 }
 
-/* ==================== 对话框场景 ==================== */
-.double-life-dialog {
+/* ==================== 横板对话场景 ==================== */
+.dialog-scene {
   position: fixed;
   inset: 0;
   background: var(--bg-overlay);
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  padding-bottom: 40px;
   z-index: 100;
+  overflow: hidden;
 }
 
-/* 立绘容器 */
+/* 主角立绘 - 右侧 */
 .character-portrait {
   position: absolute;
-  bottom: 200px;
+  bottom: var(--dialog-height);
+  right: 5%;
   width: var(--portrait-width);
   height: var(--portrait-height);
   z-index: 101;
-}
-
-.character-portrait.right {
-  right: 5%;
-}
-
-.character-portrait.left {
-  left: 5%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
 }
 
 .character-portrait img {
-  width: 100%;
-  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
   object-fit: contain;
-  filter: drop-shadow(0 4px 20px rgba(0, 0, 0, 0.3));
+  filter: drop-shadow(0 4px 20px rgba(0, 0, 0, 0.5));
 }
 
-/* NPC立绘（使用emoji或简单图形） */
+/* NPC立绘 - 左侧 */
 .npc-portrait {
   position: absolute;
-  bottom: 200px;
+  bottom: var(--dialog-height);
   left: 5%;
-  width: 200px;
-  height: 200px;
+  width: var(--portrait-width);
+  height: var(--portrait-height);
   z-index: 101;
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: center;
-  font-size: 120px;
+}
+
+.npc-portrait img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 20px rgba(0, 0, 0, 0.5));
+}
+
+/* NPC立绘（使用emoji回退） */
+.npc-portrait.emoji-fallback {
   background: rgba(255, 255, 255, 0.1);
   border-radius: 50%;
   backdrop-filter: blur(10px);
+  font-size: 120px;
+  align-items: center;
 }
 
-/* 对话框 */
+/* 对话框 - 底部 */
 .dialog-box {
-  width: var(--dialog-width);
-  max-width: 900px;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: var(--dialog-height);
   background: var(--bg-dialog);
-  border-radius: 16px;
-  padding: 24px 32px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  padding: 24px 40px;
+  display: flex;
+  flex-direction: column;
   z-index: 102;
 }
 
 .dialog-speaker {
   font-size: 1rem;
   font-weight: 600;
-  color: var(--primary-color);
-  margin-bottom: 8px;
+  color: var(--text-accent);
+  margin-bottom: 12px;
 }
 
 .dialog-text {
-  font-size: 1.15rem;
-  line-height: 1.6;
+  flex: 1;
+  font-size: 1.2rem;
+  line-height: 1.7;
   color: var(--text-dialog);
-  margin-bottom: 20px;
+  overflow-y: auto;
 }
 
-/* 选项按钮 */
+/* 选项按钮容器 */
 .dialog-choices {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   gap: 12px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+  justify-content: center;
 }
 
 .choice-btn {
-  padding: 14px 20px;
-  background: rgba(99, 102, 241, 0.1);
+  padding: 12px 24px;
+  background: rgba(255, 255, 255, 0.1);
   border: 2px solid transparent;
   border-radius: 8px;
-  text-align: left;
+  text-align: center;
   font-size: 1rem;
   color: var(--text-dialog);
   cursor: pointer;
   transition: all 0.2s ease;
+  flex: 1;
+  min-width: 150px;
+  max-width: 250px;
 }
 
 .choice-btn:hover {
-  background: rgba(99, 102, 241, 0.2);
-  border-color: var(--primary-color);
-  transform: translateX(4px);
+  background: rgba(244, 157, 37, 0.2);
+  border-color: var(--text-accent);
+  transform: translateY(-2px);
 }
 
 .choice-btn:active {
-  transform: translateX(2px);
+  transform: translateY(0);
 }
 
-/* ==================== 独白场景 ==================== */
+/* ==================== 独白场景（只有主角）==================== */
 .monologue-scene {
   position: fixed;
   inset: 0;
   background: var(--bg-overlay);
-  display: flex;
-  align-items: center;
-  justify-content: center;
   z-index: 100;
-}
-
-.monologue-box {
-  max-width: 700px;
-  padding: 40px;
-  background: var(--bg-dialog);
-  border-radius: 20px;
-  text-align: center;
-}
-
-.monologue-text {
-  font-size: 1.3rem;
-  line-height: 1.8;
-  color: var(--text-dialog);
-  font-style: italic;
+  overflow: hidden;
 }
 
 /* ==================== 数值显示 ==================== */
@@ -359,19 +357,18 @@
   :root {
     --dialog-width: 95%;
     --portrait-width: 200px;
-    --portrait-height: 250px;
+    --portrait-height: 280px;
+    --dialog-height: 160px;
   }
 
   .character-portrait {
-    bottom: 160px;
-  }
-
-  .character-portrait.right {
     right: 2%;
+    bottom: var(--dialog-height);
   }
 
-  .character-portrait.left {
+  .npc-portrait {
     left: 2%;
+    bottom: var(--dialog-height);
   }
 
   .dialog-box {
@@ -383,8 +380,9 @@
   }
 
   .choice-btn {
-    padding: 12px 16px;
+    padding: 10px 16px;
     font-size: 0.9rem;
+    min-width: 120px;
   }
 
   .stats-panel {

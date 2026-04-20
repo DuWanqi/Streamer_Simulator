@@ -16,7 +16,7 @@ import skillTreeBgUrl from '/skill-tree-bg.png';
 import { NPCSystem } from '../systems/NPCSystem';
 import { SurvivalSystem } from '../systems/SurvivalSystem';
 import { DanmakuSystem } from '../systems/DanmakuSystem';
-import { HotSearchSystem } from '../systems/HotSearchSystem';
+import { HotSearchSystem, type HotSearchItem } from '../systems/HotSearchSystem';
 import { EndingSystem } from '../systems/EndingSystem';
 import { CreditsSystem } from '../systems/CreditsSystem';
 import { getStoryNodeByDay, hasStoryNode } from '../events/StoryNodes';
@@ -37,6 +37,10 @@ export class Game {
   public hotSearchSystem: HotSearchSystem;
   public endingSystem: EndingSystem;
   public creditsSystem: CreditsSystem;
+
+  // 房间背景
+  private dayBgUrl = 'https://lh3.googleusercontent.com/aida-public/AB6AXuBXvou9esw3a6BDC5gef_2UFmxwk64L0lEXcXpoiwVL3OVjCpJaQzmB4R3Rz4gHkf0AU3QdWdhz4nipuzI3iFNd2rita4FteadO_DGTizExn7lHZKq77OaBQF5fXuA0fsPyTIoSl-7JZuZ2q4w9LHwu16RSVPKpzMiV-lRrd2R8gRo283sij8VGIokZchmpt7EiALh8Bt303pQqmE5p6RdAiSFU_e-b90QDYJW2Ip5hQHjQcr21xS5ccUK4RXLvTsCkli1oT0LZ-uU';
+  private nightBgUrl = 'https://lh3.googleusercontent.com/aida-public/AB6AXuDANr5S3ESAi059fBbWA6tdKBH36DVqok6pXWzdbij_EcRu6K2ou7CPWRr44Tzzw8t9TSMC2FAr4RqJIuD0PX0CxJaN8_RYb3p2GJ1xOadg-Tdt3tneaMLzWdMoRn9gmC88yY7r5QjAi2BFzYh9ZOjoV162ydG5OPP9J6RF-4oxPbFgIaBpo7ziQsJ3mv98fjDkxrZvMe8_Dw';
 
   private uiContainer: HTMLElement;
   private pixiContainer: HTMLElement;
@@ -215,8 +219,10 @@ export class Game {
 
     // 绑定事件
     element.querySelector('#btn-start')?.addEventListener('click', async () => {
-      // 显示开场动画（完整立绘）
+      // 显示开场动画（完整立绘）- 穿越剧情
       await this.showOpeningScene();
+      // 开场后进入分区选择
+      this.playerData.reset();
       this.stateManager.changeScene('category_select');
     });
 
@@ -451,16 +457,38 @@ export class Game {
           inset: 0;
           background: ${isDaytime ? 'rgba(255,255,255,0.15)' : 'rgba(34,26,16,0.25)'};
         "></div>
-        ${isDaytime ? `
-        <!-- 阳光效果 -->
-        <div style="
+        
+        <!-- 电脑屏幕点击区域 - 点击主界面中间的电脑屏幕 -->
+        <div id="computer-screen" style="
           position: absolute;
-          inset: 0;
-          background: linear-gradient(115deg, rgba(255,255,255,0) 40%, rgba(255,248,220,0.3) 50%, rgba(255,255,255,0) 60%);
-          pointer-events: none;
-        "></div>
-        ` : ''}
-
+          top: 48%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          width: 320px;
+          height: 200px;
+          cursor: pointer;
+          z-index: 100;
+          border-radius: 8px;
+          transition: all 0.3s;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        " title="点击使用电脑">
+          <div style="
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(8px);
+            padding: 8px 16px;
+            border-radius: 20px;
+            color: white;
+            font-size: 0.85rem;
+            font-weight: 600;
+            letter-spacing: 1px;
+            opacity: 0;
+            transition: all 0.3s;
+            pointer-events: none;
+          ">🖥️ 进入电脑</div>
+        </div>
+        
         <!-- 顶部导航 -->
         <header style="
           position: relative;
@@ -681,6 +709,13 @@ export class Game {
           0% { transform: translateX(-100%); }
           100% { transform: translateX(100%); }
         }
+        #computer-screen:hover {
+          background: rgba(0, 0, 0, 0.15) !important;
+          transform: translate(-50%, -50%) scale(1.05) !important;
+        }
+        #computer-screen:hover > div {
+          opacity: 1 !important;
+        }
         #btn-upgrade:hover {
           transform: scale(1.02);
           border-color: rgba(244,157,37,0.3);
@@ -714,6 +749,110 @@ export class Game {
       // AI已在进入主界面时预热，直接进入直播
       this.stateManager.changeScene('livestream');
     });
+
+    // 绑定电脑屏幕点击事件
+    const computerScreen = element.querySelector('#computer-screen');
+    console.log('[DEBUG] 电脑屏幕元素:', computerScreen);
+    if (computerScreen) {
+      computerScreen.addEventListener('click', (e) => {
+        console.log('[DEBUG] 电脑屏幕被点击');
+        e.stopPropagation();
+        this.renderComputerDesktop();
+      });
+    } else {
+      console.error('[ERROR] 找不到电脑屏幕元素');
+    }
+
+    // 检查是否需要显示每日开场和NPC对话（只在白天且未升级时）
+    if (isDaytime && !state.hasFinishedUpgrade) {
+      // 使用setTimeout确保UI已经渲染完成
+      setTimeout(async () => {
+        console.log('[DEBUG] 准备显示每日事件');
+        await this.checkAndShowDailyEvents();
+      }, 500);
+    }
+  }
+
+  private dailyEventsShown: boolean = false;
+
+  /**
+   * 检查并显示每日事件（开场独白、NPC对话、生存危机等）
+   */
+  private async checkAndShowDailyEvents(): Promise<void> {
+    console.log('[DEBUG] checkAndShowDailyEvents 被调用, dailyEventsShown:', this.dailyEventsShown);
+    if (this.dailyEventsShown) {
+      console.log('[DEBUG] 每日事件已显示过，跳过');
+      return;
+    }
+    this.dailyEventsShown = true;
+
+    const state = this.playerData.getState();
+    const day = state.currentDay;
+    console.log('[DEBUG] 当前天数:', day);
+
+    // 1. 显示每日开场独白
+    console.log('[DEBUG] 准备显示每日开场');
+    await this.showDailyOpening();
+    console.log('[DEBUG] 每日开场显示完成');
+
+    // 2. 检查生存危机
+    console.log('[DEBUG] 检查生存危机');
+    const survivalResult = this.survivalSystem.processDaily();
+    console.log('[DEBUG] 生存危机结果:', survivalResult);
+    if (survivalResult.crisis) {
+      await this.renderDialogScene({
+        text: survivalResult.crisis.message,
+        speaker: '系统提示',
+        emotion: 'nervous'
+      });
+    }
+
+    // 3. 检查NPC对话
+    console.log('[DEBUG] 检查NPC对话');
+    await this.checkAndShowNPCDialog(day);
+    console.log('[DEBUG] NPC对话检查完成');
+  }
+
+  /**
+   * 检查并显示NPC对话
+   */
+  private async checkAndShowNPCDialog(day: number): Promise<void> {
+    const npcDialogs: Record<number, { id: string; name: string; text: string; emoji: string }> = {
+      1: {
+        id: 'landlady',
+        name: '房东太太',
+        text: '小姑娘，房租是每月3000，按天算就是每天100。\n别忘了按时交租，不然...你懂的。',
+        emoji: '👵'
+      },
+      3: {
+        id: 'kexin',
+        name: '可心',
+        text: '嗨！我是可心，刚搬来隔壁。\n听说你也是主播？以后多多关照啦！',
+        emoji: '👩'
+      },
+      6: {
+        id: 'doudou',
+        name: '豆豆',
+        text: '汪汪！（你发现了一只受伤的流浪狗）\n它看起来很饿，要不要收养它？',
+        emoji: '🐕'
+      }
+    };
+
+    const dialog = npcDialogs[day];
+    if (dialog) {
+      await this.renderDialogScene(
+        {
+          text: dialog.text,
+          speaker: dialog.name,
+          emotion: 'smile'
+        },
+        {
+          id: dialog.id,
+          name: dialog.name,
+          emoji: dialog.emoji
+        }
+      );
+    }
   }
 
   private pendingToastMessage: string | null = null;
@@ -2048,6 +2187,16 @@ export class Game {
     this.playerData.addIncome(incomeChange);
     this.playerData.addExp(50 + Math.round(Math.random() * 50));
 
+    // 获取生存系统状态
+    const survivalState = state.survival || { rentDue: 0, utilitiesDue: 0, foodDays: 0, internetDue: 0 };
+    const dailyExpenses = {
+      rent: 100,
+      utilities: 20,
+      food: 30,
+      internet: 10
+    };
+    const totalExpense = dailyExpenses.rent + dailyExpenses.utilities + dailyExpenses.food + dailyExpenses.internet;
+
     const html = `
       <div class="daily-summary" style="
         width: 100vw;
@@ -2061,8 +2210,9 @@ export class Game {
         justify-content: center;
         padding: 40px;
         box-sizing: border-box;
+        overflow-y: auto;
       ">
-        <div style="max-width: 600px; width: 100%;">
+        <div style="max-width: 700px; width: 100%;">
           <div style="text-align: center; margin-bottom: 30px;">
             <span style="
               background: rgba(244,37,140,0.2);
@@ -2077,7 +2227,8 @@ export class Game {
             <p style="color: #cb90ad; margin-top: 8px;">${summary}</p>
           </div>
 
-          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 40px;">
+          <!-- 收入统计 -->
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px;">
             <div style="background: #2d1522; border-radius: 16px; padding: 24px; text-align: center; border: 1px solid rgba(255,255,255,0.05);">
               <div style="color: #60a5fa; font-size: 1.5rem; margin-bottom: 8px;">👥</div>
               <div style="font-size: 2rem; font-weight: 800;">${PlayerData.formatNumber(state.followers)}</div>
@@ -2097,6 +2248,49 @@ export class Game {
               <div style="color: #cb90ad; font-size: 0.75rem; margin-top: 4px;">收入</div>
             </div>
           </div>
+
+          <!-- 生存支出明细 -->
+          <div style="background: rgba(0,0,0,0.3); border-radius: 16px; padding: 20px; margin-bottom: 24px; border: 1px solid rgba(255,255,255,0.1);">
+            <h3 style="font-size: 1rem; color: #f49d25; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
+              <span>🏠</span> 每日支出
+            </h3>
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 16px;">
+              <div style="display: flex; justify-content: space-between; padding: 10px 14px; background: rgba(255,255,255,0.05); border-radius: 10px;">
+                <span style="color: #a0a0a0;">🏠 房租</span>
+                <span style="color: #ef4444; font-weight: 600;">-¥${dailyExpenses.rent}</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; padding: 10px 14px; background: rgba(255,255,255,0.05); border-radius: 10px;">
+                <span style="color: #a0a0a0;">💡 水电费</span>
+                <span style="color: #ef4444; font-weight: 600;">-¥${dailyExpenses.utilities}</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; padding: 10px 14px; background: rgba(255,255,255,0.05); border-radius: 10px;">
+                <span style="color: #a0a0a0;">🍚 食物</span>
+                <span style="color: #ef4444; font-weight: 600;">-¥${dailyExpenses.food}</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; padding: 10px 14px; background: rgba(255,255,255,0.05); border-radius: 10px;">
+                <span style="color: #a0a0a0;">🌐 网费</span>
+                <span style="color: #ef4444; font-weight: 600;">-¥${dailyExpenses.internet}</span>
+              </div>
+            </div>
+            <div style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 12px; display: flex; justify-content: space-between; align-items: center;">
+              <span style="color: #a0a0a0;">今日总支出</span>
+              <span style="color: #ef4444; font-size: 1.2rem; font-weight: 700;">-¥${totalExpense}</span>
+            </div>
+          </div>
+
+          <!-- 拖欠状态警告 -->
+          ${(survivalState.rentDue > 0 || survivalState.utilitiesDue > 0 || survivalState.foodDays > 0) ? `
+          <div style="background: rgba(239,68,68,0.2); border: 1px solid rgba(239,68,68,0.3); border-radius: 12px; padding: 16px; margin-bottom: 24px;">
+            <h4 style="color: #ef4444; font-size: 0.95rem; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+              <span>⚠️</span> 拖欠警告
+            </h4>
+            <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+              ${survivalState.rentDue > 0 ? `<span style="background: rgba(239,68,68,0.3); color: #fca5a5; padding: 4px 10px; border-radius: 6px; font-size: 0.8rem;">房租拖欠 ${survivalState.rentDue} 天</span>` : ''}
+              ${survivalState.utilitiesDue > 0 ? `<span style="background: rgba(239,68,68,0.3); color: #fca5a5; padding: 4px 10px; border-radius: 6px; font-size: 0.8rem;">水电拖欠 ${survivalState.utilitiesDue} 天</span>` : ''}
+              ${survivalState.foodDays > 0 ? `<span style="background: rgba(245,158,11,0.3); color: #fcd34d; padding: 4px 10px; border-radius: 6px; font-size: 0.8rem;">未进食 ${survivalState.foodDays} 天</span>` : ''}
+            </div>
+          </div>
+          ` : ''}
 
           <div style="text-align: center;">
             <button id="btn-next-day" style="
@@ -2141,6 +2335,9 @@ export class Game {
    * 双面人生每日流程
    */
   private async handleDoubleLifeDailyFlow(): Promise<void> {
+    // 重置每日事件标志，确保每天都能触发开场和NPC对话
+    this.dailyEventsShown = false;
+    
     const state = this.playerData.getState();
     const day = state.currentDay;
     
@@ -3070,7 +3267,7 @@ export class Game {
    */
   renderDailyOpening(day: number, onComplete: () => void): void {
     const state = this.playerData.getState();
-    const survival = this.playerData.getSurvivalSystem?.() || { getSurvivalSummary: () => '一切正常' };
+    const survival = this.survivalSystem;
 
     // 根据天数和状态生成开场白
     let monologue = '';
@@ -3220,7 +3417,7 @@ export class Game {
       <div class="hotsearch-card animate-slide-up">
         <div class="hotsearch-rank">🔥 微博热搜 ${hotSearch.rank > 3 ? `第${hotSearch.rank}位` : 'TOP ' + hotSearch.rank}</div>
         <div class="hotsearch-keyword">${hotSearch.keyword}</div>
-        <div class="hotsearch-heat">热度：${import('../systems/HotSearchSystem').HotSearchSystem.formatHeat(hotSearch.heat)}</div>
+        <div class="hotsearch-heat">热度：${(hotSearch.heat / 10000).toFixed(1)}万</div>
         <div class="hotsearch-comment">"${hotSearch.hotComment}"</div>
       </div>
     `;
@@ -3293,7 +3490,6 @@ export class Game {
    * 显示遮罩层
    */
   private showOverlay(html: string): void {
-    // 移除已有的遮罩
     const existingOverlay = document.getElementById('double-life-overlay');
     if (existingOverlay) {
       existingOverlay.remove();
@@ -3301,6 +3497,7 @@ export class Game {
 
     const overlay = document.createElement('div');
     overlay.id = 'double-life-overlay';
+    overlay.style.cssText = 'position: fixed; inset: 0; z-index: 9999; overflow: hidden; background: #1a1a2e;';
     overlay.innerHTML = html;
     document.body.appendChild(overlay);
   }
@@ -3316,88 +3513,934 @@ export class Game {
   }
 
   /**
-   * 显示开场动画（完整立绘）
+   * 渲染横板对话场景
+   * @param dialog 对话内容
+   * @param npc NPC信息（可选）
+   * @returns Promise<选择的选项索引>
    */
-  private async showOpeningScene(): Promise<void> {
+  private async renderDialogScene(
+    dialog: {
+      text: string;
+      speaker?: string;
+      emotion?: string;
+      choices?: { text: string; value: string }[];
+    },
+    npc?: {
+      id: string;
+      name: string;
+      emoji?: string;
+    }
+  ): Promise<string | null> {
     return new Promise((resolve) => {
+      const emotion = dialog.emotion || 'default';
+      const emotionMap: Record<string, string> = {
+        'positive': 'happy',
+        'happy': 'smile',
+        'nervous': 'nervous',
+        'scared': 'scared',
+        'angry': 'angry',
+        'disgusted': 'disgusted',
+        'embarrassed': 'embarrassed',
+        'panicked': 'panicked',
+        'playful': 'playful',
+        'tired': 'smile',
+        'sad': 'scared',
+        'confident': 'happy',
+        'default': 'smile',
+      };
+      const expression = emotionMap[emotion] || 'smile';
+
+      // NPC emoji映射
+      const npcEmojiMap: Record<string, string> = {
+        'landlady': '👵',
+        'kexin': '👩',
+        'mom': '👩‍🦳',
+        'doudou': '🐕',
+        'yueya': '👸',
+        'harasser': '👨',
+      };
+
+      // 获取当前房间背景
+      const state = this.playerData.getState();
+      const isDaytime = !state.hasFinishedUpgrade;
+      const bgUrl = isDaytime ? this.dayBgUrl : this.nightBgUrl;
+
       const html = `
-        <div id="opening-scene" style="
-          position: fixed;
-          inset: 0;
-          background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
-          z-index: 1000;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          animation: fadeIn 1s ease;
+        <div class="dialog-scene" id="dialog-scene" style="
+          position: fixed; inset: 0; z-index: 9999;
+          background-image: url('${bgUrl}');
+          background-size: cover; background-position: center;
         ">
-          <!-- 完整立绘 -->
-          <div style="
-            flex: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 100%;
-            padding: 40px;
-          ">
-            <img src="./portraits/character-full.png" 
-                  alt="小爱"
-                  style="
-                    max-height: 70vh;
-                    max-width: 100%;
-                    object-fit: contain;
-                    filter: drop-shadow(0 10px 40px rgba(0,0,0,0.5));
-                    animation: slideUp 1s ease 0.3s both;
-                  "
-                  onerror="this.style.display='none'; this.parentElement.innerHTML='<div style=\\'font-size:150px;text-align:center;animation:slideUp 1s ease 0.3s both;\\'>👩</div>';">
+          <div style="position:absolute;inset:0;background:rgba(0,0,0,0.4);"></div>
+          
+          <!-- NPC立绘 - 左侧 -->
+          ${npc ? `
+          <div class="npc-portrait emoji-fallback" style="position:absolute;bottom:180px;left:5%;width:300px;height:400px;display:flex;align-items:flex-end;justify-content:center;z-index:101;background:rgba(255,255,255,0.1);border-radius:50%;font-size:120px;align-items:center;">
+            ${npc.emoji || npcEmojiMap[npc.id] || '👤'}
+          </div>
+          ` : ''}
+          
+          <!-- 主角立绘 - 右侧 -->
+          <div class="character-portrait right" style="position:absolute;bottom:180px;right:5%;width:300px;height:400px;z-index:101;display:flex;align-items:flex-end;justify-content:center;">
+            <img src="./portraits/${expression}.png" 
+                 alt="小爱"
+                 style="max-width:100%;max-height:100%;object-fit:contain;filter:drop-shadow(0 4px 20px rgba(0,0,0,0.5));"
+                 onerror="this.style.display='none'; this.parentElement.innerHTML='<div style=\\'font-size:120px;text-align:center;line-height:400px;\\'>👩</div>';">
           </div>
           
-          <!-- 标题和介绍 -->
-          <div style="
-            text-align: center;
-            color: white;
-            padding: 0 40px 60px;
-            animation: fadeIn 1s ease 0.8s both;
-          ">
-            <h1 style="font-size: 2.5rem; margin-bottom: 16px; color: #f49d25;">主播模拟器：双面人生</h1>
-            <p style="font-size: 1.1rem; color: #a0a0a0; max-width: 600px; line-height: 1.6;">
-              20天的直播生涯，在虚拟与现实之间寻找真实的自己
-            </p>
-            <p style="font-size: 0.9rem; color: #666; margin-top: 20px;">
-              点击任意处继续...
-            </p>
+          <!-- 对话框 - 底部 -->
+          <div class="dialog-box">
+            ${dialog.speaker ? `<div class="dialog-speaker">${dialog.speaker}</div>` : ''}
+            <div class="dialog-text">${dialog.text}</div>
+            
+            ${dialog.choices && dialog.choices.length > 0 ? `
+            <div class="dialog-choices">
+              ${dialog.choices.map((choice, index) => `
+                <button class="choice-btn" data-value="${choice.value}" data-index="${index}">
+                  ${choice.text}
+                </button>
+              `).join('')}
+            </div>
+            ` : `
+            <div style="display: flex; justify-content: flex-end; margin-top: 16px;">
+              <button id="btn-dialog-continue" style="
+                padding: 10px 24px;
+                background: linear-gradient(135deg, #f49d25 0%, #ffb95e 100%);
+                border: none;
+                border-radius: 20px;
+                color: white;
+                font-size: 0.95rem;
+                font-weight: 600;
+                cursor: pointer;
+              ">继续</button>
+            </div>
+            `}
           </div>
-          
-          <style>
-            @keyframes fadeIn {
-              from { opacity: 0; }
-              to { opacity: 1; }
-            }
-            @keyframes slideUp {
-              from { opacity: 0; transform: translateY(50px); }
-              to { opacity: 1; transform: translateY(0); }
-            }
-          </style>
         </div>
       `;
 
-      // 显示开场
-      const openingDiv = document.createElement('div');
-      openingDiv.innerHTML = html;
-      document.body.appendChild(openingDiv);
+      this.showOverlay(html);
 
-      // 点击继续
-      const handleClick = () => {
-        openingDiv.remove();
-        document.removeEventListener('click', handleClick);
-        resolve();
+      // 绑定选项按钮事件
+      if (dialog.choices && dialog.choices.length > 0) {
+        const choiceBtns = document.querySelectorAll('.choice-btn');
+        choiceBtns.forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            const value = (e.target as HTMLElement).dataset.value;
+            this.hideOverlay();
+            resolve(value || null);
+          });
+        });
+      } else {
+        // 绑定继续按钮
+        const continueBtn = document.getElementById('btn-dialog-continue');
+        if (continueBtn) {
+          continueBtn.addEventListener('click', () => {
+            this.hideOverlay();
+            resolve(null);
+          });
+        }
+      }
+    });
+  }
+
+  /**
+   * 显示每日开场独白
+   */
+  private async showDailyOpening(): Promise<void> {
+    const state = this.playerData.getState();
+    const day = state.currentDay;
+
+    // 根据天数和状态决定情绪和文本
+    let emotion = 'smile';
+    let text = '';
+
+    if (day === 1) {
+      emotion = 'nervous';
+      text = '（揉眼睛）这是...我真的穿越了？\n不管怎样，先努力活下去吧！';
+    } else if (state.sanity < 30) {
+      emotion = 'scared';
+      text = '（疲惫）又是新的一天...\n感觉精神快要崩溃了...';
+    } else if (state.income < 0) {
+      emotion = 'nervous';
+      text = '（叹气）欠的钱越来越多了...\n得想办法多赚点。';
+    } else {
+      emotion = 'smile';
+      text = '（伸懒腰）新的一天开始了！\n今天也要加油直播！';
+    }
+
+    await this.renderDialogScene({
+      text,
+      emotion
+    });
+  }
+
+  /**
+   * 显示开场动画（完整立绘）- 穿越剧情
+   */
+  private async showOpeningScene(): Promise<void> {
+    return new Promise((resolve) => {
+      // 剧情步骤
+      const storySteps = [
+        {
+          title: '',
+          text: '你是一名普通的大学生，也是主播"小爱"的忠实粉丝。\n\n100天前，小爱突然停播，没有任何解释。\n\n今天，你收到了直播推送...',
+          emotion: '微笑',
+          isSystem: false
+        },
+        {
+          title: '',
+          text: '屏幕上，小爱的身影逐渐模糊...\n\n一阵眩晕袭来...',
+          emotion: '惊慌',
+          isSystem: false
+        },
+        {
+          title: '【系统提示】',
+          text: '检测到强烈执念，启动穿越程序...\n绑定角色：林小爱\n任务：走完她的人生之路，找到停播的真相',
+          emotion: '紧张',
+          isSystem: true
+        },
+        {
+          title: '',
+          text: '你睁开眼睛，发现自己坐在简陋的出租屋里。\n\n面前是一台老旧的电脑，屏幕上显示着直播界面。\n\n这是...小爱刚起步的第1天？',
+          emotion: '紧张',
+          isSystem: false
+        }
+      ];
+
+      let currentStep = 0;
+
+      const showStep = () => {
+        const step = storySteps[currentStep];
+        const isLastStep = currentStep === storySteps.length - 1;
+
+        const html = `
+          <div id="opening-scene" style="
+            position: fixed;
+            inset: 0;
+            background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+          ">
+            <!-- 完整立绘背景 -->
+            <div style="
+              position: absolute;
+              inset: 0;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              opacity: 0.3;
+            ">
+              <img src="./portraits/character-full.png" 
+                    alt="小爱"
+                    style="
+                      max-height: 90vh;
+                      max-width: 100%;
+                      object-fit: contain;
+                      filter: blur(2px) drop-shadow(0 10px 40px rgba(0,0,0,0.5));
+                    "
+                    onerror="this.style.display='none';">
+            </div>
+            
+            <!-- 对话框 -->
+            <div style="
+              position: relative;
+              z-index: 10;
+              width: 80%;
+              max-width: 700px;
+              background: rgba(0, 0, 0, 0.85);
+              border-radius: 16px;
+              padding: 32px 40px;
+              box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+              animation: fadeIn 0.5s ease;
+            ">
+              ${step.title ? `<div style="color: #f49d25; font-size: 0.9rem; margin-bottom: 12px; font-weight: 600;">${step.title}</div>` : ''}
+              <div style="
+                color: white;
+                font-size: 1.2rem;
+                line-height: 1.8;
+                margin-bottom: 24px;
+                white-space: pre-line;
+              ">${step.text}</div>
+              
+              <div style="display: flex; justify-content: flex-end;">
+                <button id="btn-next-step" style="
+                  padding: 12px 32px;
+                  background: linear-gradient(135deg, #f49d25 0%, #ffb95e 100%);
+                  border: none;
+                  border-radius: 25px;
+                  color: white;
+                  font-size: 1rem;
+                  font-weight: 600;
+                  cursor: pointer;
+                  transition: all 0.3s ease;
+                ">${isLastStep ? '开始游戏' : '下一步'}</button>
+              </div>
+            </div>
+            
+            <!-- 步骤指示器 -->
+            <div style="
+              position: absolute;
+              bottom: 40px;
+              display: flex;
+              gap: 8px;
+            ">
+              ${storySteps.map((_, i) => `
+                <div style="
+                  width: 8px;
+                  height: 8px;
+                  border-radius: 50%;
+                  background: ${i === currentStep ? '#f49d25' : 'rgba(255,255,255,0.3)'}"></div>
+              `).join('')}
+            </div>
+            
+            <style>
+              @keyframes fadeIn {
+                from { opacity: 0; transform: translateY(20px); }
+                to { opacity: 1; transform: translateY(0); }
+              }
+              #btn-next-step:hover {
+                transform: scale(1.05);
+                box-shadow: 0 8px 20px rgba(244,157,37,0.4);
+              }
+            </style>
+          </div>
+        `;
+
+        // 清除之前的内容
+        const existingScene = document.getElementById('opening-scene');
+        if (existingScene) {
+          existingScene.remove();
+        }
+
+        // 显示当前步骤
+        const sceneDiv = document.createElement('div');
+        sceneDiv.innerHTML = html;
+        document.body.appendChild(sceneDiv);
+
+        // 绑定按钮事件
+        const nextBtn = document.getElementById('btn-next-step');
+        if (nextBtn) {
+          nextBtn.addEventListener('click', () => {
+            if (isLastStep) {
+              sceneDiv.remove();
+              resolve();
+            } else {
+              currentStep++;
+              showStep();
+            }
+          });
+        }
       };
 
-      // 3秒后或点击后继续
+      // 开始显示第一步
+      showStep();
+    });
+  }
+
+  // ==================== 电脑桌面APP系统 ====================
+
+  private openApps: Set<string> = new Set();
+
+  /**
+   * 渲染电脑桌面
+   */
+  private renderComputerDesktop(): void {
+    console.log('[DEBUG] renderComputerDesktop 被调用');
+    const now = new Date();
+    const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+
+    const html = `
+      <div class="computer-desktop" id="computer-desktop">
+        <!-- Windows风格桌面背景 -->
+        <div class="desktop-wallpaper"></div>
+        
+        <!-- 桌面图标区域 -->
+        <div class="desktop-icons">
+          <!-- 微信APP图标 -->
+          <div class="desktop-icon" id="desktop-icon-wechat" data-app="wechat">
+            <div class="desktop-icon-img">💬</div>
+            <div class="desktop-icon-text">微信</div>
+          </div>
+          
+          <!-- 微博APP图标 -->
+          <div class="desktop-icon" id="desktop-icon-weibo" data-app="weibo">
+            <div class="desktop-icon-img">📱</div>
+            <div class="desktop-icon-text">微博</div>
+          </div>
+          
+          <!-- 回收站 -->
+          <div class="desktop-icon" id="desktop-icon-trash" data-app="trash">
+            <div class="desktop-icon-img">🗑️</div>
+            <div class="desktop-icon-text">回收站</div>
+          </div>
+        </div>
+        
+        <!-- 窗口容器 -->
+        <div id="windows-container"></div>
+        
+        <!-- Windows任务栏 -->
+        <div class="windows-taskbar">
+          <div class="taskbar-left">
+            <button class="start-btn" id="btn-start">🪟</button>
+            <div class="taskbar-apps" id="taskbar-apps"></div>
+          </div>
+          <div class="taskbar-right">
+            <div class="system-tray">
+              <span>🔊</span>
+              <span>📶</span>
+            </div>
+            <div class="datetime">
+              <div class="time">${timeStr}</div>
+              <div class="date">${now.getMonth() + 1}/${now.getDate()}</div>
+            </div>
+            <button class="close-desktop-btn" id="btn-close-desktop" title="关闭电脑">✕</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    this.showOverlay(html);
+    this.openApps.clear();
+
+    // 绑定桌面图标双击事件
+    document.querySelectorAll('.desktop-icon').forEach(icon => {
+      icon.addEventListener('dblclick', (e) => {
+        const app = (e.currentTarget as HTMLElement).dataset.app;
+        if (app === 'wechat') this.openWindow('wechat', '微信', this.renderWechatContent());
+        if (app === 'weibo') this.openWindow('weibo', '微博', this.renderWeiboContent());
+        if (app === 'trash') this.openWindow('trash', '回收站', '<div style="padding: 20px;">回收站是空的</div>');
+      });
+    });
+
+    // 绑定关闭桌面按钮
+    document.getElementById('btn-close-desktop')?.addEventListener('click', () => {
+      this.hideOverlay();
+      this.openApps.clear();
+    });
+  }
+
+  /**
+   * 打开窗口
+   */
+  private openWindow(id: string, title: string, content: string): void {
+    if (this.openApps.has(id)) {
+      // 窗口已存在，聚焦到最前
+      const existingWindow = document.getElementById(`window-${id}`);
+      if (existingWindow) {
+        this.focusWindow(existingWindow);
+      }
+      return;
+    }
+
+    this.openApps.add(id);
+    const container = document.getElementById('windows-container');
+    if (!container) return;
+
+    // 随机位置，避免重叠
+    const randomX = 50 + Math.random() * 100;
+    const randomY = 30 + Math.random() * 50;
+
+    const windowHtml = `
+      <div class="app-window" id="window-${id}" style="left: ${randomX}px; top: ${randomY}px;">
+        <div class="window-titlebar" data-window-id="${id}">
+          <div class="window-title">${title}</div>
+          <div class="window-controls">
+            <button class="win-btn minimize" data-action="minimize">−</button>
+            <button class="win-btn maximize" data-action="maximize">□</button>
+            <button class="win-btn close" data-action="close">×</button>
+          </div>
+        </div>
+        <div class="window-body">
+          ${content}
+        </div>
+      </div>
+    `;
+
+    container.insertAdjacentHTML('beforeend', windowHtml);
+    this.updateTaskbar();
+    this.bindWindowEvents(id);
+  }
+
+  /**
+   * 绑定窗口事件
+   */
+  private bindWindowEvents(windowId: string): void {
+    const windowEl = document.getElementById(`window-${windowId}`);
+    if (!windowEl) return;
+
+    // 关闭按钮
+    windowEl.querySelector('[data-action="close"]')?.addEventListener('click', () => {
+      this.closeWindow(windowId);
+    });
+
+    // 最小化按钮
+    windowEl.querySelector('[data-action="minimize"]')?.addEventListener('click', () => {
+      windowEl.style.display = 'none';
+      this.updateTaskbar();
+    });
+
+    // 最大化按钮
+    let isMaximized = false;
+    windowEl.querySelector('[data-action="maximize"]')?.addEventListener('click', () => {
+      if (isMaximized) {
+        windowEl.style.width = '900px';
+        windowEl.style.height = '600px';
+        windowEl.style.left = '50px';
+        windowEl.style.top = '50px';
+        windowEl.style.transform = 'none';
+      } else {
+        windowEl.style.width = '100%';
+        windowEl.style.height = 'calc(100% - 48px)';
+        windowEl.style.left = '0';
+        windowEl.style.top = '0';
+        windowEl.style.transform = 'none';
+      }
+      isMaximized = !isMaximized;
+    });
+
+    // 拖拽功能
+    const titlebar = windowEl.querySelector('.window-titlebar');
+    if (titlebar) {
+      let isDragging = false;
+      let startX = 0, startY = 0;
+      let initialX = 0, initialY = 0;
+
+      titlebar.addEventListener('mousedown', (e: Event) => {
+        const mouseEvent = e as MouseEvent;
+        if ((mouseEvent.target as HTMLElement).closest('.window-controls')) return;
+        isDragging = true;
+        startX = mouseEvent.clientX;
+        startY = mouseEvent.clientY;
+        const rect = windowEl.getBoundingClientRect();
+        initialX = rect.left;
+        initialY = rect.top;
+        this.focusWindow(windowEl);
+      });
+
+      document.addEventListener('mousemove', (e: Event) => {
+        const mouseEvent = e as MouseEvent;
+        if (!isDragging) return;
+        const dx = mouseEvent.clientX - startX;
+        const dy = mouseEvent.clientY - startY;
+        windowEl.style.left = `${initialX + dx}px`;
+        windowEl.style.top = `${initialY + dy}px`;
+        windowEl.style.transform = 'none';
+      });
+
+      document.addEventListener('mouseup', () => {
+        isDragging = false;
+      });
+    }
+
+    // 点击窗口聚焦
+    windowEl.addEventListener('mousedown', () => {
+      this.focusWindow(windowEl);
+    });
+
+    // 绑定APP特定事件
+    if (windowId === 'wechat') {
+      this.bindWechatEvents(windowEl);
+    } else if (windowId === 'weibo') {
+      this.bindWeiboEvents(windowEl);
+    }
+  }
+
+  /**
+   * 绑定微信APP事件
+   */
+  private bindWechatEvents(windowEl: HTMLElement): void {
+    // 联系人点击
+    windowEl.querySelectorAll('.wechat-contact').forEach(contact => {
+      contact.addEventListener('click', (e) => {
+        const npcId = (e.currentTarget as HTMLElement).dataset.npc;
+        if (!npcId) return;
+        this.openWechatChat(npcId, windowEl);
+        // 高亮选中的联系人
+        windowEl.querySelectorAll('.wechat-contact').forEach(c => c.classList.remove('active'));
+        (e.currentTarget as HTMLElement).classList.add('active');
+      });
+    });
+  }
+
+  /**
+   * 绑定微博APP事件
+   */
+  private bindWeiboEvents(windowEl: HTMLElement): void {
+    // Tab切换
+    windowEl.querySelectorAll('.weibo-tab').forEach(tab => {
+      tab.addEventListener('click', (e) => {
+        const targetTab = (e.currentTarget as HTMLElement).dataset.tab;
+        if (!targetTab) return;
+        
+        // 切换tab激活状态
+        windowEl.querySelectorAll('.weibo-tab').forEach(t => t.classList.remove('active'));
+        (e.currentTarget as HTMLElement).classList.add('active');
+        
+        // 切换面板
+        windowEl.querySelectorAll('.weibo-tab-panel').forEach(p => {
+          (p as HTMLElement).style.display = 'none';
+        });
+        const targetPanel = windowEl.querySelector(`#tab-${targetTab}`);
+        if (targetPanel) {
+          (targetPanel as HTMLElement).style.display = 'block';
+        }
+      });
+    });
+
+    // 发布按钮
+    windowEl.querySelector('#btn-post-weibo')?.addEventListener('click', () => {
+      this.openWeiboPostModal();
+    });
+  }
+
+  /**
+   * 聚焦窗口到最前
+   */
+  private focusWindow(windowEl: HTMLElement): void {
+    document.querySelectorAll('.app-window').forEach(w => {
+      (w as HTMLElement).style.zIndex = '100';
+    });
+    windowEl.style.zIndex = '200';
+  }
+
+  /**
+   * 关闭窗口
+   */
+  private closeWindow(windowId: string): void {
+    const windowEl = document.getElementById(`window-${windowId}`);
+    if (windowEl) {
+      windowEl.remove();
+      this.openApps.delete(windowId);
+      this.updateTaskbar();
+    }
+  }
+
+  /**
+   * 更新任务栏
+   */
+  private updateTaskbar(): void {
+    const taskbarApps = document.getElementById('taskbar-apps');
+    if (!taskbarApps) return;
+
+    taskbarApps.innerHTML = Array.from(this.openApps).map(appId => {
+      const windowEl = document.getElementById(`window-${appId}`);
+      const isVisible = windowEl && windowEl.style.display !== 'none';
+      const icons: Record<string, string> = { wechat: '💬', weibo: '📱', trash: '🗑️' };
+      return `
+        <button class="taskbar-app-btn ${isVisible ? 'active' : ''}" data-app="${appId}">
+          ${icons[appId] || '📄'}
+        </button>
+      `;
+    }).join('');
+
+    // 绑定任务栏按钮点击
+    taskbarApps.querySelectorAll('.taskbar-app-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const appId = (e.currentTarget as HTMLElement).dataset.app;
+        if (!appId) return;
+        const windowEl = document.getElementById(`window-${appId}`);
+        if (windowEl) {
+          if (windowEl.style.display === 'none') {
+            windowEl.style.display = 'flex';
+            this.focusWindow(windowEl);
+          } else if (windowEl.style.zIndex === '200') {
+            windowEl.style.display = 'none';
+          } else {
+            this.focusWindow(windowEl);
+          }
+          this.updateTaskbar();
+        }
+      });
+    });
+  }
+
+  /**
+   * 渲染微信内容
+   */
+  private renderWechatContent(): string {
+    const state = this.playerData.getState();
+    const survival = state.survival || { rentDue: 0, utilitiesDue: 0 };
+
+    const npcs = [
+      { id: 'landlady', name: '房东太太', emoji: '👵', lastMsg: survival.rentDue > 0 ? `已拖欠${survival.rentDue}天房租` : '房租记得交哦', time: '12:30' },
+      { id: 'kexin', name: '可心', emoji: '👩', lastMsg: '在吗？', time: '昨天' },
+      { id: 'mom', name: '妈妈', emoji: '👩‍🦳', lastMsg: '注意身体', time: '昨天' },
+    ];
+
+    if (state.npcRelations?.doudou > 0) {
+      npcs.push({ id: 'doudou', name: '豆豆', emoji: '🐕', lastMsg: '汪汪！', time: '10:00' });
+    }
+
+    return `
+      <div class="wechat-container">
+        <div class="wechat-sidebar">
+          <div class="wechat-search-box">
+            <input type="text" class="wechat-search-input" placeholder="搜索">
+          </div>
+          <div class="wechat-contact-list">
+            ${npcs.map(npc => `
+              <div class="wechat-contact" data-npc="${npc.id}">
+                <div class="contact-avatar">${npc.emoji}</div>
+                <div class="contact-info">
+                  <div class="contact-name">${npc.name}</div>
+                  <div class="contact-msg">${npc.lastMsg}</div>
+                </div>
+                <div class="contact-time">${npc.time}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+        <div class="wechat-chat-area" id="wechat-chat-area">
+          <div class="chat-placeholder">选择一个联系人开始聊天</div>
+        </div>
+      </div>
+    `;
+  }
+
+  /**
+   * 渲染微博内容
+   */
+  private renderWeiboContent(): string {
+    const hotSearches = this.hotSearchSystem.getCurrentHotSearches(10);
+
+    return `
+      <div class="weibo-container">
+        <div class="weibo-tabs">
+          <button class="weibo-tab active" data-tab="home">首页</button>
+          <button class="weibo-tab" data-tab="hot">热搜</button>
+        </div>
+        <div class="weibo-content">
+          <div class="weibo-tab-panel active" id="tab-home">
+            <div class="weibo-posts">
+              <div class="weibo-post-card">
+                <div class="post-header">
+                  <span class="post-avatar">👩</span>
+                  <span class="post-name">林小爱</span>
+                  <span class="post-time">2小时前</span>
+                </div>
+                <div class="post-content">今天直播很开心！感谢大家的支持～ #直播日常</div>
+                <div class="post-actions">
+                  <span>♥ 128</span>
+                  <span>💬 32</span>
+                  <span>↗ 8</span>
+                </div>
+              </div>
+            </div>
+            <button class="weibo-fab" id="btn-post-weibo">+</button>
+          </div>
+          <div class="weibo-tab-panel" id="tab-hot" style="display: none;">
+            <div class="hotsearch-list">
+              ${hotSearches.map((hot, i) => `
+                <div class="hotsearch-item">
+                  <span class="hot-rank ${i < 3 ? 'top' + (i + 1) : ''}">${i + 1}</span>
+                  <span class="hot-keyword">${hot.keyword}</span>
+                  <span class="hot-heat">${(hot.heat / 10000).toFixed(1)}万</span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  /**
+   * 打开微信聊天窗口
+   */
+  private openWechatChat(npcId: string, windowEl?: HTMLElement): void {
+    const parent = windowEl || document.getElementById('window-wechat');
+    if (!parent) return;
+    const chatWindow = parent.querySelector('#wechat-chat-area');
+    if (!chatWindow) return;
+
+    const npcData: Record<string, { name: string; emoji: string }> = {
+      landlady: { name: '房东太太', emoji: '👵' },
+      kexin: { name: '可心', emoji: '👩' },
+      mom: { name: '妈妈', emoji: '👩‍🦳' },
+      doudou: { name: '豆豆', emoji: '🐕' },
+    };
+
+    const npc = npcData[npcId];
+    if (!npc) return;
+
+    const state = this.playerData.getState();
+    const survival = state.survival || { rentDue: 0, utilitiesDue: 0 };
+
+    // 生成历史消息
+    const messages: { type: 'self' | 'other'; content: string }[] = [];
+    
+    if (npcId === 'landlady') {
+      messages.push({ type: 'other', content: '小姑娘，房租是每月3000，按天算就是每天100。别忘了按时交租，不然...你懂的。' });
+      if (survival.rentDue > 0) {
+        messages.push({ type: 'other', content: `你已经拖欠房租${survival.rentDue}天了，请尽快缴纳！` });
+      }
+    } else if (npcId === 'kexin') {
+      messages.push({ type: 'other', content: '嗨！我是可心，刚搬来隔壁。听说你也是主播？以后多多关照啦！' });
+    } else if (npcId === 'mom') {
+      messages.push({ type: 'other', content: '小爱，最近过得怎么样？不要太累了，注意身体。' });
+    } else if (npcId === 'doudou') {
+      messages.push({ type: 'other', content: '汪汪！（摇尾巴）' });
+    }
+
+    const isLandlady = npcId === 'landlady';
+    const canPayRent = isLandlady && survival.rentDue > 0 && state.income >= 100;
+    const canPayUtilities = isLandlady && survival.utilitiesDue > 0 && state.income >= 20;
+
+    chatWindow.innerHTML = `
+      <div style="display: flex; flex-direction: column; height: 100%; background: #f5f5f5;">
+        <div style="padding: 12px 16px; border-bottom: 1px solid #e0e0e0; background: white; display: flex; align-items: center; justify-content: space-between;">
+          <div style="font-size: 14px; font-weight: 500; color: #333;">${npc.name}</div>
+          ${isLandlady ? `
+          <div style="display: flex; gap: 8px;">
+            <button class="btn-pay-rent" style="padding: 4px 12px; background: #07c160; color: white; border: none; border-radius: 4px; font-size: 12px; cursor: pointer; ${!canPayRent ? 'opacity:0.5;' : ''}">交房租 ¥100</button>
+            <button class="btn-pay-utilities" style="padding: 4px 12px; background: #409eff; color: white; border: none; border-radius: 4px; font-size: 12px; cursor: pointer; ${!canPayUtilities ? 'opacity:0.5;' : ''}">交水电 ¥20</button>
+          </div>
+          ` : ''}
+        </div>
+        <div class="wechat-msg-container" style="flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+          ${messages.map(msg => `
+            <div style="display: flex; ${msg.type === 'self' ? 'justify-content: flex-end;' : 'justify-content: flex-start;'}">
+              ${msg.type === 'other' ? `<div style="width: 36px; height: 36px; border-radius: 4px; background: #f0f0f0; display: flex; align-items: center; justify-content: center; font-size: 20px; margin-right: 8px;">${npc.emoji}</div>` : ''}
+              <div style="padding: 8px 12px; border-radius: 4px; max-width: 70%; font-size: 14px; line-height: 1.5; ${msg.type === 'self' ? 'background: #95ec69;' : 'background: white;'}">${msg.content}</div>
+              ${msg.type === 'self' ? `<div style="width: 36px; height: 36px; border-radius: 4px; background: #f0f0f0; display: flex; align-items: center; justify-content: center; font-size: 20px; margin-left: 8px;">👩</div>` : ''}
+            </div>
+          `).join('')}
+        </div>
+        <div style="padding: 12px 16px; border-top: 1px solid #e0e0e0; background: white; display: flex; gap: 8px;">
+          <input class="wechat-msg-input" type="text" placeholder="输入消息..." style="flex: 1; padding: 8px 12px; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 14px; outline: none;">
+          <button class="wechat-msg-send" style="padding: 8px 16px; background: #07c160; color: white; border: none; border-radius: 4px; font-size: 14px; cursor: pointer;">发送</button>
+        </div>
+      </div>
+    `;
+
+    // 绑定交房租按钮
+    if (isLandlady) {
+      chatWindow.querySelector('.btn-pay-rent')?.addEventListener('click', () => {
+        if (state.income >= 100) {
+          this.playerData.addIncome(-100);
+          this.playerData.updateSurvival('rentDue', -1);
+          this.addWechatMessage('self', '房东太太，这是房租¥100。', chatWindow);
+          setTimeout(() => {
+            this.addWechatMessage('other', '收到，记得按时交租哦。', chatWindow, npc.emoji);
+          }, 500);
+        }
+      });
+
+      chatWindow.querySelector('.btn-pay-utilities')?.addEventListener('click', () => {
+        if (state.income >= 20) {
+          this.playerData.addIncome(-20);
+          this.playerData.updateSurvival('utilitiesDue', -1);
+          this.addWechatMessage('self', '房东太太，这是水电费¥20。', chatWindow);
+          setTimeout(() => {
+            this.addWechatMessage('other', '好的，水电费已收到。', chatWindow, npc.emoji);
+          }, 500);
+        }
+      });
+    }
+
+    // 绑定发送消息
+    const input = chatWindow.querySelector('.wechat-msg-input') as HTMLInputElement;
+    const sendBtn = chatWindow.querySelector('.wechat-msg-send');
+    
+    const sendMessage = () => {
+      const content = input.value.trim();
+      if (!content) return;
+      this.addWechatMessage('self', content, chatWindow);
+      input.value = '';
+
+      // NPC回复
       setTimeout(() => {
-        document.addEventListener('click', handleClick);
+        const replies: Record<string, string[]> = {
+          landlady: ['好的', '知道了', '记得按时交租', '年轻人要努力啊'],
+          kexin: ['哈哈', '真的吗', '我也觉得', '一起加油！'],
+          mom: ['照顾好自己', '妈妈想你', '注意身体', '有空回家看看'],
+          doudou: ['汪汪！', '（摇尾巴）', '（舔手）', '（蹭）'],
+        };
+        const reply = replies[npcId][Math.floor(Math.random() * replies[npcId].length)];
+        this.addWechatMessage('other', reply, chatWindow, npc.emoji);
       }, 1000);
+    };
+
+    sendBtn?.addEventListener('click', sendMessage);
+    input?.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') sendMessage();
+    });
+  }
+
+  /**
+   * 添加微信消息
+   */
+  private addWechatMessage(type: 'self' | 'other', content: string, container?: Element, emoji?: string): void {
+    const messagesContainer = container?.querySelector('.wechat-msg-container') || document.querySelector('.wechat-msg-container');
+    if (!messagesContainer) return;
+
+    const npcEmoji = emoji || '👤';
+    const html = `
+      <div class="wechat-message ${type}">
+        <div class="wechat-avatar">${type === 'self' ? '👩' : npcEmoji}</div>
+        <div class="wechat-message-content">${content}</div>
+      </div>
+    `;
+
+    messagesContainer.insertAdjacentHTML('beforeend', html);
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+  }
+
+  /**
+   * 打开微博发布弹窗
+   */
+  private openWeiboPostModal(): void {
+    const modal = document.createElement('div');
+    modal.className = 'weibo-post-modal';
+    modal.id = 'weibo-post-modal';
+    modal.innerHTML = `
+      <div class="weibo-post-modal-content">
+        <div class="weibo-post-modal-header">
+          <span class="weibo-post-modal-title">发布微博</span>
+          <button class="weibo-post-modal-close" id="btn-modal-close">×</button>
+        </div>
+        <textarea class="weibo-post-input" id="weibo-post-content" placeholder="分享新鲜事..."></textarea>
+        <div class="weibo-post-modal-actions">
+          <button class="weibo-post-modal-btn cancel" id="btn-modal-cancel">取消</button>
+          <button class="weibo-post-modal-btn confirm" id="btn-modal-confirm">发布</button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    // 绑定关闭事件
+    const closeModal = () => {
+      modal.remove();
+    };
+
+    document.getElementById('btn-modal-close')?.addEventListener('click', closeModal);
+    document.getElementById('btn-modal-cancel')?.addEventListener('click', closeModal);
+
+    // 绑定发布事件
+    document.getElementById('btn-modal-confirm')?.addEventListener('click', () => {
+      const content = (document.getElementById('weibo-post-content') as HTMLTextAreaElement).value.trim();
+      if (!content) return;
+
+      // 发布帖子增加粉丝
+      this.playerData.addFollowers(Math.floor(Math.random() * 50) + 20);
+      
+      // 关闭弹窗
+      closeModal();
+      
+      // 刷新微博窗口内容
+      const weiboWindow = document.getElementById('window-weibo');
+      if (weiboWindow) {
+        const body = weiboWindow.querySelector('.window-body');
+        if (body) {
+          body.innerHTML = this.renderWeiboContent();
+          this.bindWeiboEvents(weiboWindow);
+        }
+      }
     });
   }
 }

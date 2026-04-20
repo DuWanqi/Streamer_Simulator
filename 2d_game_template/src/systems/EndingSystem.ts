@@ -7,6 +7,14 @@
 import type { PlayerData } from '../game/PlayerData';
 import { ENDINGS, type EndingType } from '../game/GameConfig';
 
+// 辅助函数：格式化数字
+function formatNumber(num: number): string {
+  if (num >= 10000) {
+    return (num / 10000).toFixed(1) + '万';
+  }
+  return num.toString();
+}
+
 export interface EndingResult {
   type: EndingType;
   name: string;
@@ -189,7 +197,7 @@ export class EndingSystem {
     const state = this.playerData.getState();
 
     const summaries = [
-      `20天的直播生涯，你从${PlayerData.formatNumber(100)}粉丝成长为${PlayerData.formatNumber(state.followers)}粉丝的主播。`,
+      `20天的直播生涯，你从${formatNumber(100)}粉丝成长为${formatNumber(state.followers)}粉丝的主播。`,
       `经历了${state.failCount}次翻车，上了${state.trendingTopics.length}次热搜。`,
       `最终善良值${state.kindness}，诚信值${state.integrity}，精神值${state.sanity}。`,
       `与${Object.entries(state.npcRelations).filter(([_, v]) => v > 50).length}位NPC建立了深厚友谊。`,

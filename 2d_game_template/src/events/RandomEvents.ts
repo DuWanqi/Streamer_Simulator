@@ -19,6 +19,7 @@ export interface RandomEventChoice {
     money?: number;
     failCount?: number;
     personaIntegrity?: number;
+    npcRelation?: { npcId: string; change: number };
   };
   response: string;
   responseEmotion: string;

@@ -155,6 +155,13 @@ export class HotSearchSystem {
   }
 
   /**
+   * 获取当前热搜列表（用于微博APP）
+   */
+  getCurrentHotSearches(count: number = 10): HotSearchItem[] {
+    return this.generateHotSearchList(count);
+  }
+
+  /**
    * 根据剧情节点生成热搜
    */
   generateFromStoryNode(node: StoryNode): HotSearchItem | null {

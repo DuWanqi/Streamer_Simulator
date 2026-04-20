@@ -45,10 +45,10 @@ export class DanmakuOverlay {
   /**
    * 添加弹幕
    */
-  addDanmaku(message: DanmakuMessage): void {
+  addDanmaku(message: DanmakuMessage & { text?: string; isGift?: boolean; giftAmount?: number }): void {
     const danmakuEl = document.createElement('div');
     danmakuEl.className = 'anime-danmaku-item';
-    danmakuEl.textContent = message.text;
+    danmakuEl.textContent = message.text || message.content;
     
     // 根据人格设置颜色
     const colors: Record<string, string> = {
@@ -87,7 +87,7 @@ export class DanmakuOverlay {
 
     // 添加打赏标识
     if (message.isGift && message.giftAmount) {
-      danmakuEl.textContent = `🎁 ${message.text}`;
+      danmakuEl.textContent = `🎁 ${message.text || message.content}`;
       danmakuEl.style.fontWeight = 'bold';
       danmakuEl.style.fontSize = '16px';
     }
@@ -109,7 +109,7 @@ export class DanmakuOverlay {
     }
 
     logger.log('debug', 'DanmakuOverlay', '添加弹幕', { 
-      text: message.text.substring(0, 20),
+      text: (message.text || message.content).substring(0, 20),
       personality: message.personalityName 
     });
   }

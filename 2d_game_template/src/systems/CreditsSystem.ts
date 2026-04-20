@@ -7,6 +7,14 @@
 import type { PlayerData } from '../game/PlayerData';
 import type { EndingResult } from './EndingSystem';
 
+// 辅助函数：格式化数字
+function formatNumber(num: number): string {
+  if (num >= 10000) {
+    return (num / 10000).toFixed(1) + '万';
+  }
+  return num.toString();
+}
+
 export interface CreditItem {
   type: 'title' | 'name' | 'role' | 'stat' | 'quote' | 'empty';
   content: string;
@@ -56,7 +64,7 @@ export class CreditsSystem {
 
     // 游戏数据
     credits.push({ type: 'role', content: '游戏数据', delay: 1.5 });
-    credits.push({ type: 'stat', content: `最终人气：${PlayerData.formatNumber(state.followers)}`, delay: 0.8 });
+    credits.push({ type: 'stat', content: `最终人气：${formatNumber(state.followers)}`, delay: 0.8 });
     credits.push({ type: 'stat', content: `翻车次数：${state.failCount} 次`, delay: 0.8 });
     credits.push({ type: 'stat', content: `热搜记录：${state.trendingTopics.length} 条`, delay: 0.8 });
     credits.push({ type: 'stat', content: `善良值：${state.kindness} | 诚信值：${state.integrity} | 精神值：${state.sanity}`, delay: 0.8 });

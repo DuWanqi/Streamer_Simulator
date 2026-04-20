@@ -5,7 +5,7 @@
 
 import { logger } from '../core/DebugLogger';
 import type { PlayerState, HotSearch, NPCId } from '../data/Types';
-import { NPCS } from './NPCSystem';
+import { NPCS } from '../game/GameConfig';
 
 export interface CareerSummary {
   title: string;
@@ -374,10 +374,14 @@ export class CareerSummarySystem {
     npcRelations: Record<NPCId, number>
   ): string {
     // 根据NPC关系生成不同的结尾
+    const npcMap = new Map(NPCS.map(n => [n.id, n]));
     const highRelationNPCs = Object.entries(npcRelations)
       .filter(([, value]) => value >= 60)
-      .map(([key]) => NPCS[key as NPCId]?.name)
-      .filter(Boolean);
+      .map(([key]) => {
+        const npc = npcMap.get(key as NPCId);
+        return npc ? npc.name : null;
+      })
+      .filter((name): name is string => name !== null);
 
     const baseEnding = '这就是小爱的故事。一个关于虚拟与现实、表演与真实、流量与人性的故事。';
     

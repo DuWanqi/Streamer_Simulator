@@ -7,6 +7,14 @@
 import { DANMAKU_PERSONALITIES } from '../game/GameConfig';
 import type { PlayerData } from '../game/PlayerData';
 
+// 辅助函数：格式化数字
+function formatNumber(num: number): string {
+  if (num >= 10000) {
+    return (num / 10000).toFixed(1) + '万';
+  }
+  return num.toString();
+}
+
 export interface DanmakuMessage {
   id: string;
   personalityId: string;
@@ -168,7 +176,7 @@ export class DanmakuSystem {
     const state = this.playerData.getState();
     template = template.replace('{count}', state.failCount.toString());
     template = template.replace('{total}', (state.failCount + Math.floor(Math.random() * 10)).toString());
-    template = template.replace('{followers}', PlayerData.formatNumber(state.followers));
+    template = template.replace('{followers}', formatNumber(state.followers));
     template = template.replace('{rate}', (50 + Math.floor(Math.random() * 30)).toString());
     template = template.replace('{time}', (60 + Math.floor(Math.random() * 120)).toString());
     template = template.replace('{percent}', (70 + Math.floor(Math.random() * 25)).toString());
