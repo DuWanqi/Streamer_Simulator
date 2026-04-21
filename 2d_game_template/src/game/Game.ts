@@ -45,6 +45,9 @@ export class Game {
   private uiContainer: HTMLElement;
   private pixiContainer: HTMLElement;
   private currentUIElement: HTMLElement | null = null;
+  
+  // 技能树状态保持
+  private skillTreeDimensionIndex = 0;
 
   constructor() {
     this.app = new Application();
@@ -1067,7 +1070,8 @@ export class Game {
     const skillPoints = state.skillPoints ?? 20;
     const unlockedNodes: Set<string> = new Set(state.unlockedNodes || []);
     let selectedNodeId: string | null = null;
-    let currentDimensionIndex = 0;
+    // 使用类成员变量保持当前维度，避免重新渲染时跳回口才
+    let currentDimensionIndex = this.skillTreeDimensionIndex;
 
     const getNodeStatus = (node: SkillNode): 'locked' | 'available' | 'unlocked' => {
       if (unlockedNodes.has(node.id)) return 'unlocked';
@@ -1093,7 +1097,8 @@ export class Game {
       let btnStyle, badgeBg, labelBg, labelColor, labelBorder, iconOpacity, overlayHtml;
 
       if (status === 'unlocked') {
-        btnStyle = `width:80px;height:80px;border-radius:50%;border:5px solid #fff;transition:all .3s;background:linear-gradient(135deg,${gf},${gt});box-shadow:0 8px 25px ${gf}50;color:#fff;display:flex;align-items:center;justify-content:center;position:relative;cursor:pointer;flex-shrink:0;`;
+        // 已解锁：彩色渐变，白色边框，有阴影
+        btnStyle = `width:80px;height:80px;border-radius:50%;border:5px solid #fff;transition:all .3s;background:linear-gradient(135deg,${gf},${gt});box-shadow:0 8px 25px ${gf}50,color:#fff;display:flex;align-items:center;justify-content:center;position:relative;cursor:pointer;flex-shrink:0;`;
         badgeBg = '#fbbf24';
         labelBg = 'rgba(255,255,255,0.95)';
         labelColor = '#db2777';
@@ -1101,14 +1106,16 @@ export class Game {
         iconOpacity = '1';
         overlayHtml = '';
       } else if (status === 'available') {
-        btnStyle = `width:80px;height:80px;border-radius:50%;border:5px solid #fff;transition:all .3s;background:linear-gradient(135deg,${gf},${gt});box-shadow:0 8px 25px ${gf}50;color:#fff;display:flex;align-items:center;justify-content:center;position:relative;cursor:pointer;flex-shrink:0;`;
+        // 可解锁（前置满足但未学习）：灰色背景，彩色边框，无渐变填充
+        btnStyle = `width:80px;height:80px;border-radius:50%;border:5px solid ${gf};transition:all .3s;background:linear-gradient(135deg,#f3f4f6,#e5e7eb);box-shadow:0 4px 12px rgba(0,0,0,0.1);color:${gf};display:flex;align-items:center;justify-content:center;position:relative;cursor:pointer;flex-shrink:0;`;
         badgeBg = '#ec4899';
         labelBg = 'rgba(255,255,255,0.95)';
         labelColor = '#db2777';
         labelBorder = '#fce7f3';
-        iconOpacity = '1';
+        iconOpacity = '0.7';
         overlayHtml = '';
       } else {
+        // 未解锁（前置不满足）：灰色，有锁图标
         btnStyle = 'width:80px;height:80px;border-radius:50%;border:5px solid #e5e7eb;transition:all .3s;background:#f3f4f6;color:#9ca3af;display:flex;align-items:center;justify-content:center;position:relative;cursor:not-allowed;flex-shrink:0;';
         badgeBg = '#9ca3af';
         labelBg = 'rgba(255,255,255,0.8)';
@@ -1348,6 +1355,8 @@ export class Game {
         btn.addEventListener('click', () => {
           const index = parseInt((btn as HTMLElement).dataset.index || '0');
           currentDimensionIndex = index;
+          // 保存当前维度到类成员变量
+          this.skillTreeDimensionIndex = index;
           selectedNodeId = null;
           updateNodesDisplay();
         });
@@ -1431,6 +1440,8 @@ export class Game {
             this.playerData.unlockNode(node.id);
             showUnlockCelebration(node);
             selectedNodeId = null;
+            // 保存当前维度后再重新渲染，避免跳回口才维度
+            this.skillTreeDimensionIndex = currentDimensionIndex;
             setTimeout(() => this.renderSkillTree(), 100);
           }
         });
