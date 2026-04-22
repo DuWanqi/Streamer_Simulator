@@ -22,6 +22,7 @@ import { CreditsSystem } from '../systems/CreditsSystem';
 import { getStoryNodeByDay, hasStoryNode } from '../events/StoryNodes';
 import { getRandomEvent } from '../events/RandomEvents';
 import { gameLogger } from '../utils/GameLogger';
+import { cutsceneSystem, type CutsceneSequence } from '../systems/CutsceneSystem';
 
 export class Game {
   public app: Application;
@@ -3638,136 +3639,120 @@ export class Game {
   }
 
   /**
-   * 显示开场动画（完整立绘）- 穿越剧情
+   * 显示开场动画（漫画过场）- 穿越剧情
+   * 使用CutsceneSystem播放商业级过场动画
    */
   private async showOpeningScene(): Promise<void> {
-    return new Promise((resolve) => {
-      const storySteps = [
-        {
-          text: '你是一名普通的大学生，也是主播"小爱"的忠实粉丝。',
-          detail: '100天前，坐拥百万粉丝的小爱突然断更停播，全网哗然。有人说她被封杀了，有人说她受不了压力退网了。但你知道——她不会无缘无故消失。',
-          emotion: 'smile',
-        },
-        {
-          text: '今天凌晨两点，你收到了一条推送——',
-          detail: '"小爱的直播间重新开播了。"\n\n你点进去，屏幕上只有一片雪花。\n\n然后，画面突然清晰了。你看到了——你自己。不，是"小爱"的眼睛，透过屏幕看着你。\n\n一股巨大的吸力将你扯进了屏幕......',
-          emotion: 'panicked',
-        },
-        {
-          text: '【检测到强烈执念——穿越程序启动】',
-          detail: '绑定角色：林小爱（未出道版）\n时间线：直播第1天\n\n任务：走完她的人生之路。\n目标：找到她停播100天的真相。',
-          emotion: 'nervous',
-          isSystem: true,
-        },
-        {
-          text: '你睁开眼睛。',
-          detail: '一间不到10平米的出租屋。墙皮斑驳，桌上是一台老旧的笔记本电脑，旁边堆着泡面盒子和几张催缴单。\n\n电脑屏幕上，直播软件的界面正闪着光——"欢迎回来，小爱♡"\n\n这是她一切开始的地方。而现在，你，就是她。',
-          emotion: 'nervous',
-          isLast: true,
-        },
-      ];
+    // 定义开场漫画序列
+    const openingSequence: CutsceneSequence = [
+      // 第1张漫画：深夜的执念
+      {
+        type: 'image',
+        src: 'comic/漫画1.png',
+        duration: 4000,
+        transition: { in: 'fade', out: 'fade', duration: 800 },
+        effect: 'ken-burns',
+      },
+      // 文字幕卡1
+      {
+        type: 'text',
+        content: '你是一名普通的大学生',
+        subContent: '也是主播"小爱"的忠实粉丝',
+        duration: 3000,
+        typingEffect: true,
+        typingSpeed: 80,
+        transition: { in: 'fade', out: 'fade', duration: 600 },
+      },
+      // 第2张漫画：消失的偶像
+      {
+        type: 'image',
+        src: 'comic/漫画2.png',
+        duration: 4000,
+        transition: { in: 'slide-up', out: 'slide-up', duration: 800 },
+        effect: 'none',
+      },
+      // 文字幕卡2
+      {
+        type: 'text',
+        content: '100天前，小爱突然断更停播',
+        subContent: '有人说她被封杀了，有人说她退网了\n但你知道——她不会无缘无故消失',
+        duration: 4000,
+        typingEffect: true,
+        typingSpeed: 70,
+        transition: { in: 'fade', out: 'fade', duration: 600 },
+      },
+      // 第3张漫画：诡异的推送
+      {
+        type: 'image',
+        src: 'comic/漫画3.png',
+        duration: 4000,
+        transition: { in: 'scale', out: 'scale', duration: 1000 },
+        effect: 'pulse',
+      },
+      // 文字幕卡3
+      {
+        type: 'text',
+        content: '今天凌晨两点',
+        subContent: '你收到了一条推送——\n"小爱的直播间重新开播了"',
+        duration: 3500,
+        typingEffect: true,
+        typingSpeed: 90,
+        transition: { in: 'fade', out: 'fade', duration: 600 },
+      },
+      // 第4张漫画：穿越瞬间
+      {
+        type: 'image',
+        src: 'comic/漫画4.png',
+        duration: 4000,
+        transition: { in: 'fade', out: 'fade', duration: 1200 },
+        effect: 'none',
+      },
+      // 系统提示
+      {
+        type: 'text',
+        content: '【检测到强烈执念——穿越程序启动】',
+        subContent: '绑定角色：林小爱（未出道版）\n时间线：直播第1天',
+        duration: 4000,
+        typingEffect: true,
+        typingSpeed: 60,
+        transition: { in: 'fade', out: 'fade', duration: 800 },
+      },
+      // 第5张漫画：新的开始
+      {
+        type: 'image',
+        src: 'comic/漫画5.png',
+        duration: 4500,
+        transition: { in: 'scale', out: 'fade', duration: 1000 },
+        effect: 'ken-burns',
+      },
+      // 最终文字幕卡
+      {
+        type: 'text',
+        content: '你睁开眼睛',
+        subContent: '一间不到10平米的出租屋\n电脑屏幕上闪着光——\n"欢迎回来，小爱♡"',
+        duration: 5000,
+        typingEffect: true,
+        typingSpeed: 70,
+        transition: { in: 'fade', out: 'fade', duration: 1000 },
+      },
+      // 任务提示
+      {
+        type: 'text',
+        content: '任务：走完她的人生之路',
+        subContent: '目标：找到她停播100天的真相',
+        duration: 0, // 等待点击
+        typingEffect: true,
+        typingSpeed: 80,
+        transition: { in: 'fade', out: 'fade', duration: 600 },
+      },
+    ];
 
-      let currentStep = 0;
-
-      const showStep = () => {
-        const step = storySteps[currentStep];
-        const isLastStep = currentStep === storySteps.length - 1;
-
-        const html = `
-          <div id="opening-scene" class="opening-scene" style="
-            background: linear-gradient(180deg, #0d0d1a 0%, #1a1a2e 50%, #16213e 100%);
-          ">
-            <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;opacity:0.15;">
-              <img src="./portraits/character-full.png" alt=""
-                   style="max-height:90vh;max-width:100%;object-fit:contain;filter:blur(3px) brightness(0.7);"
-                   onerror="this.style.display='none';">
-            </div>
-
-            <div style="position:relative;z-index:10;width:85%;max-width:680px;animation:dl-opening-in 0.6s ease-out;">
-              ${step.isSystem ? `
-              <div style="font-size:0.8rem;color:#818cf8;font-weight:700;letter-spacing:0.1em;margin-bottom:16px;
-                          text-transform:uppercase;">SYSTEM</div>
-              ` : ''}
-
-              <div style="color:#e2e8f0;font-size:1.5rem;font-weight:700;line-height:1.5;margin-bottom:16px;
-                          white-space:pre-line;">${step.text}</div>
-
-              <div style="color:#94a3b8;font-size:1.05rem;line-height:1.9;white-space:pre-line;
-                          border-left:3px solid rgba(244,157,37,0.4);padding-left:20px;margin-bottom:28px;">
-                ${step.detail || ''}
-              </div>
-
-              <div style="display:flex;justify-content:space-between;align-items:center;">
-                <div style="display:flex;gap:8px;">
-                  ${storySteps.map((_, i) => `
-                    <div class="opening-step-dot ${i === currentStep ? 'active' : ''}"></div>
-                  `).join('')}
-                </div>
-                <div style="display:flex;gap:12px;align-items:center;">
-                  ${isLastStep ? '' : `
-                  <button id="btn-skip-opening" style="
-                    padding:10px 20px;background:transparent;border:1px solid rgba(255,255,255,0.15);
-                    border-radius:20px;color:rgba(255,255,255,0.5);font-size:0.85rem;cursor:pointer;
-                    font-family:var(--font-primary);transition:all 0.2s ease;
-                  ">跳过</button>
-                  `}
-                  <button id="btn-next-step" style="
-                    padding:12px 36px;
-                    background:${isLastStep
-                      ? 'linear-gradient(135deg, #f4258c 0%, #ff4d8d 100%)'
-                      : 'linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05))'};
-                    border:${isLastStep ? 'none' : '1px solid rgba(255,255,255,0.2)'};
-                    border-radius:24px;color:#fff;font-size:${isLastStep ? '1.05rem' : '0.95rem'};
-                    font-weight:600;cursor:pointer;font-family:var(--font-primary);
-                    transition:all 0.25s ease;
-                    ${isLastStep ? 'box-shadow:0 6px 24px rgba(244,37,140,0.4);' : ''}
-                  ">${isLastStep ? '开始小爱的人生' : '继续'}</button>
-                </div>
-              </div>
-            </div>
-
-            <style>
-              @keyframes dl-opening-in {
-                from { opacity: 0; transform: translateY(16px); }
-                to { opacity: 1; transform: translateY(0); }
-              }
-              #btn-next-step:hover {
-                transform: scale(1.04);
-                box-shadow: 0 6px 20px rgba(244,37,140,0.3);
-              }
-              #btn-skip-opening:hover {
-                border-color: rgba(255,255,255,0.3);
-                color: rgba(255,255,255,0.8);
-              }
-            </style>
-          </div>
-        `;
-
-        const existingScene = document.getElementById('opening-scene');
-        if (existingScene) existingScene.remove();
-
-        const sceneDiv = document.createElement('div');
-        sceneDiv.innerHTML = html;
-        document.body.appendChild(sceneDiv);
-
-        const finish = () => {
-          sceneDiv.remove();
-          resolve();
-        };
-
-        document.getElementById('btn-next-step')?.addEventListener('click', () => {
-          if (isLastStep) {
-            finish();
-          } else {
-            currentStep++;
-            showStep();
-          }
-        });
-
-        document.getElementById('btn-skip-opening')?.addEventListener('click', finish);
-      };
-
-      showStep();
+    // 使用CutsceneSystem播放过场动画
+    await cutsceneSystem.play({
+      sequence: openingSequence,
+      backgroundColor: '#000000',
+      allowSkip: true,
+      autoAdvance: true,
     });
   }
 
