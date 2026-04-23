@@ -2601,12 +2601,7 @@ export class Game {
 
       const continueHtml = config.showContinue !== false && !config.choices?.length
         ? `<div style="display:flex;justify-content:flex-end;margin-top:16px;">
-             <button id="btn-dialog-continue" style="
-               padding:10px 28px;background:linear-gradient(135deg,#f49d25,#ffb95e);
-               border:none;border-radius:20px;color:#fff;font-size:0.9rem;
-               font-weight:600;cursor:pointer;font-family:var(--font-primary);
-               transition:all 0.2s ease;box-shadow:0 4px 16px rgba(244,157,37,0.3);
-             ">继续</button>
+             <button class="dialog-continue-btn" id="btn-dialog-continue">继续 ▸</button>
            </div>`
         : '';
 
