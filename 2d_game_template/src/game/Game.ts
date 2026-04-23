@@ -1960,138 +1960,174 @@ export class Game {
     const state = this.playerData.getState();
     const events = this.eventPool.generateDayEvents(state);
     
-    // 简化版直播界面
+    // 直播间UI - 使用固定宽高比容器确保与背景图对齐
     const html = `
-      <div class="livestream" style="
-        width: 100vw;
-        height: 100vh;
-        background: linear-gradient(180deg, #221019 0%, #180a12 100%);
-        font-family: 'Plus Jakarta Sans', sans-serif;
+      <div style="
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #1a1a2e;
+        font-family: 'Noto Sans SC', sans-serif;
         color: white;
+      ">
+      <div class="livestream" style="
         position: relative;
+        width: min(100vw, calc(100vh * 1672 / 941));
+        aspect-ratio: 1672 / 941;
         overflow: hidden;
       ">
-        <!-- 背景 -->
+        <!-- 背景层：直播间UI (1672x941) -->
         <div style="
           position: absolute;
           inset: 0;
-          background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCEHSEg-cE7rHJ5bZc4Sa20jAgvdoB3bSGLl8OKEc6_QdPlbEa517hutDZi-OqiRPvLGFjNh9YtwRiBhPfUsaJMYScGCy_JinSHTe-j-ZXrrp-VKUzgIHcl7Gc7qgc9R0cFCopanjlw6kAlMhSQcoy9LZCXfEPhWND2XvKHA0fBtmy5APRaj6hK3AtAWOG879rZgmAzbeVql1UMhb9lWS1kPLkRrhN6tIy3dzBSXAuQjv3sfp_mbyHjkA16YkYyBx-3vjZksfFo0f4');
-          background-size: cover;
-          background-position: center;
-          opacity: 0.5;
+          background: url('直播间UI.png') 0 0 / 100% 100% no-repeat;
+          z-index: 0;
         "></div>
-        <div style="position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,0.6) 0%, transparent 30%, rgba(0,0,0,0.8) 100%);"></div>
 
-        <!-- 顶部信息 -->
-        <header style="
+        <!-- 左侧：直播画面（电脑桌面） -->
+        <div style="
           position: absolute;
-          top: 0;
-          left: 0;
-          right: 0;
-          padding: 20px;
+          top: 9.03%;
+          left: 1.50%;
+          width: 83.43%;
+          height: 85.02%;
+          overflow: hidden;
+          z-index: 2;
+        ">
+          <img src="电脑桌面背景.png" style="width: 100%; height: 100%; object-fit: cover; display: block;">
+        </div>
+
+        <!-- 顶部信息条（悬浮在直播画面上） -->
+        <div style="
+          position: absolute;
+          top: 9.5%;
+          left: 2%;
+          width: 82%;
           display: flex;
           justify-content: space-between;
-          align-items: flex-start;
+          align-items: center;
           z-index: 20;
         ">
           <div style="
             display: flex;
             align-items: center;
-            gap: 10px;
-            background: rgba(0,0,0,0.4);
-            backdrop-filter: blur(10px);
-            padding: 8px 16px 8px 8px;
+            gap: 8px;
+            background: rgba(255,255,255,0.15);
+            backdrop-filter: blur(8px);
+            padding: 4px 12px 4px 4px;
             border-radius: 50px;
-            border: 1px solid rgba(255,255,255,0.1);
           ">
-            <div style="width: 40px; height: 40px; background: linear-gradient(135deg, #fe2c55, #25f4ee); border-radius: 50%;"></div>
+            <div style="width: 32px; height: 32px; background: linear-gradient(135deg, #fe2c55, #25f4ee); border-radius: 50%;"></div>
             <div>
-              <div style="font-size: 0.8rem; font-weight: 700;">PixelQueen</div>
-              <div style="font-size: 0.7rem; color: #cb90ad;">${PlayerData.formatNumber(state.followers)} Followers</div>
+              <div style="font-size: 0.75rem; font-weight: 700;">PixelQueen</div>
+              <div style="font-size: 0.65rem; opacity: 0.8;">${PlayerData.formatNumber(state.followers)} 粉丝</div>
             </div>
           </div>
-
-          <div style="display: flex; align-items: center; gap: 10px;">
-            <div style="
-              display: flex;
-              align-items: center;
-              gap: 6px;
-              background: rgba(0,0,0,0.4);
-              backdrop-filter: blur(10px);
-              padding: 8px 16px;
-              border-radius: 50px;
-              border: 1px solid rgba(255,255,255,0.1);
-            ">
-              <div style="width: 8px; height: 8px; background: #ff0000; border-radius: 50%; animation: pulse 1s infinite;"></div>
-              <span style="font-size: 0.85rem; font-weight: 700;">${PlayerData.formatNumber(PlayerData.getViewerCount(state.followers, state.stageId))} 人在看</span>
-            </div>
+          <div style="
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(255,255,255,0.15);
+            backdrop-filter: blur(8px);
+            padding: 6px 14px;
+            border-radius: 50px;
+          ">
+            <div style="width: 8px; height: 8px; background: #ff0000; border-radius: 50%; animation: pulse 1s infinite;"></div>
+            <span style="font-size: 0.8rem; font-weight: 700;">${PlayerData.formatNumber(PlayerData.getViewerCount(state.followers, state.stageId))} 人在看</span>
           </div>
-        </header>
+        </div>
 
-        <!-- 弹幕区域 -->
+        <!-- 弹幕区域（飘过直播画面） -->
         <div id="danmaku-container" style="
           position: absolute;
-          top: 100px;
-          left: 0;
-          right: 0;
-          height: 200px;
+          top: 12%;
+          left: 1.50%;
+          width: 83.43%;
+          height: 50%;
           overflow: hidden;
-          z-index: 15;
+          z-index: 10;
+          pointer-events: none;
         "></div>
 
-        <!-- 评论区域 -->
+        <!-- 右侧上：公告栏 -->
         <div style="
           position: absolute;
-          bottom: 100px;
-          left: 20px;
-          width: 300px;
-          max-height: 250px;
+          top: 9.03%;
+          left: 84.94%;
+          width: 13.58%;
+          height: 40.91%;
+          z-index: 10;
+          padding: 1.5%;
+          box-sizing: border-box;
           overflow: hidden;
-          z-index: 20;
         ">
-          <div id="comments-container" style="display: flex; flex-direction: column; gap: 8px;"></div>
-        </div>
-
-        <!-- 底部操作 -->
-        <div style="
-          position: absolute;
-          bottom: 0;
-          left: 0;
-          right: 0;
-          padding: 20px;
-          background: linear-gradient(0deg, rgba(0,0,0,0.9) 0%, transparent 100%);
-          z-index: 20;
-        ">
-          <div style="display: flex; align-items: center; justify-content: center; gap: 16px;">
-            <div style="
-              flex: 1;
-              max-width: 300px;
-              height: 44px;
-              background: rgba(0,0,0,0.4);
-              backdrop-filter: blur(10px);
-              border-radius: 50px;
-              padding: 0 20px;
-              display: flex;
-              align-items: center;
-              color: rgba(255,255,255,0.5);
-              border: 1px solid rgba(255,255,255,0.1);
-            ">Say something...</div>
-            <button style="width: 44px; height: 44px; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 50%; color: white; cursor: pointer;">❤️</button>
-            <button style="width: 44px; height: 44px; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 50%; color: white; cursor: pointer;">🎁</button>
-            <button id="btn-end-stream" style="
-              padding: 12px 30px;
-              background: #fe2c55;
-              border: none;
-              border-radius: 50px;
-              color: white;
-              font-weight: 700;
-              cursor: pointer;
-            ">结束直播</button>
+          <div style="font-size: 0.85rem; font-weight: 700; color: #5b7ea8; margin-bottom: 10px;">📢 公告栏</div>
+          <div style="font-size: 0.75rem; color: #6b8aab; line-height: 1.7;">
+            欢迎来到直播间！请遵守直播规则，文明互动～<br>
+            <span style="color: #e87ba8;">💖 ${state.category === 'music' ? '音乐' : state.category === 'dance' ? '舞蹈' : state.category === 'gaming' ? '游戏' : '综艺'}直播中</span>
           </div>
         </div>
 
-        <!-- 事件弹窗容器 -->
+        <!-- 右侧下：评论区 -->
+        <div style="
+          position: absolute;
+          top: 49.94%;
+          left: 84.94%;
+          width: 13.58%;
+          height: 44.10%;
+          z-index: 20;
+          overflow: hidden;
+          padding: 1.5%;
+          box-sizing: border-box;
+        ">
+          <div style="font-size: 0.75rem; color: #5b7ea8; margin-bottom: 8px; font-weight: 600;">💬 直播评论</div>
+          <div id="comments-container" style="display: flex; flex-direction: column; gap: 6px; height: calc(100% - 24px); overflow-y: auto;"></div>
+        </div>
+
+        <!-- 底部控制栏 -->
+        <div style="
+          position: absolute;
+          bottom: 0.5%;
+          left: 1.50%;
+          right: 1.50%;
+          display: flex;
+          align-items: center;
+          justify-content: flex-end;
+          gap: 10px;
+          z-index: 20;
+        ">
+          <div style="
+            flex: 1;
+            max-width: 200px;
+            height: 30px;
+            background: rgba(255,255,255,0.2);
+            backdrop-filter: blur(8px);
+            border-radius: 50px;
+            padding: 0 14px;
+            display: flex;
+            align-items: center;
+            color: rgba(255,255,255,0.5);
+            font-size: 0.75rem;
+          ">说点什么...</div>
+          <button style="width: 30px; height: 30px; background: rgba(255,255,255,0.2); border: none; border-radius: 50%; cursor: pointer; font-size: 0.85rem;">❤️</button>
+          <button style="width: 30px; height: 30px; background: rgba(255,255,255,0.2); border: none; border-radius: 50%; cursor: pointer; font-size: 0.85rem;">🎁</button>
+          <button id="btn-end-stream" style="
+            padding: 6px 18px;
+            background: #fe2c55;
+            border: none;
+            border-radius: 50px;
+            color: white;
+            font-weight: 700;
+            cursor: pointer;
+            font-size: 0.8rem;
+          ">结束直播</button>
+        </div>
+
+        <!-- 事件弹窗容器（fixed定位覆盖全屏） -->
         <div id="event-popup" style="display: none;"></div>
+      </div>
       </div>
 
       <style>
@@ -2100,8 +2136,8 @@ export class Game {
           50% { opacity: 0.5; }
         }
         @keyframes danmaku-scroll {
-          from { transform: translateX(100%); right: 0; }
-          to { transform: translateX(-100vw); right: 0; }
+          from { transform: translateX(100%); }
+          to { transform: translateX(-100vw); }
         }
       </style>
     `;
@@ -2135,7 +2171,7 @@ export class Game {
         font-weight: 600;
         font-size: ${12 + Math.random() * 8}px;
         text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
-        top: ${Math.random() * 150}px;
+        top: ${Math.random() * 90}%;
         right: 0;
         transform: translateX(100%);
         animation: danmaku-scroll ${duration}s linear forwards;
@@ -2150,18 +2186,16 @@ export class Game {
       const el = document.createElement('div');
       el.innerHTML = `
         <div style="
-          background: rgba(0,0,0,0.4);
-          backdrop-filter: blur(10px);
-          border-radius: 12px;
-          padding: 8px 12px;
-          border: 1px solid rgba(255,255,255,0.05);
+          background: rgba(91,126,168,0.08);
+          border-radius: 8px;
+          padding: 6px 10px;
         ">
-          <span style="color: #cb90ad; font-size: 0.75rem; font-weight: 600;">${comment.user}</span>
-          <span style="color: white; font-size: 0.85rem; margin-left: 8px;">${comment.text}</span>
+          <span style="color: #5b7ea8; font-size: 0.7rem; font-weight: 600;">${comment.user}</span>
+          <span style="color: #333; font-size: 0.8rem; margin-left: 6px;">${comment.text}</span>
         </div>
       `;
       commentsContainer.appendChild(el);
-      if (commentsContainer.children.length > 6) {
+      if (commentsContainer.children.length > 10) {
         commentsContainer.firstChild?.remove();
       }
     };

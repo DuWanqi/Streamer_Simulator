@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>透明PNG镂空区域测量工具</title>
+    <style>
+        body { font-family: monospace; background: #1a1a2e; color: #fff; padding: 20px; }
+        canvas { display: none; }
+        .result { background: #2a2a3e; border-radius: 8px; padding: 20px; margin: 10px 0; }
+        .region { margin: 10px 0; padding: 15px; border: 1px solid #4a4a6e; border-radius: 8px; }
+        .region h3 { color: #5DADE2; margin-bottom: 8px; }
+        .css-code { background: #0d0d1a; padding: 15px; border-radius: 8px; margin-top: 15px; color: #4ade80; white-space: pre; }
+        #preview { position: relative; display: inline-block; margin: 20px 0; }
+        #preview-img { max-width: 800px; border: 1px solid #555; }
+        .box-overlay { position: absolute; border: 2px solid #ff0; pointer-events: none; }
+        .box-label { position: absolute; top: -20px; left: 0; background: #ff0; color: #000; font-size: 11px; padding: 2px 6px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>透明PNG镂空区域自动测量</h1>
+    <p>正在分析 <strong>直播间UI挖空真.png</strong> 的透明区域...</p>
+    <canvas id="c"></canvas>
+    <div id="preview">
+        <img id="preview-img" src="../assets/直播间UI挖空真.png">
+    </div>
+    <div id="results" class="result"></div>
+
+    <script>
+        // Union-Find: O(n) 连通分量算法，瞬间完成
+        class UF {
+            constructor(n) { this.p = new Int32Array(n).map((_,i)=>i); this.r = new Uint8Array(n); }
+            find(x) { while(this.p[x]!==x){this.p[x]=this.p[this.p[x]];x=this.p[x];} return x; }
+            union(a,b) { a=this.find(a);b=this.find(b);if(a===b)return;if(this.r[a]<this.r[b])[a,b]=[b,a];this.p[b]=a;if(this.r[a]===this.r[b])this.r[a]++; }
+        }
+
+        const img = new Image();
+        img.onload = () => {
+            const w = img.naturalWidth, h = img.naturalHeight, n = w * h;
+            const canvas = document.getElementById('c');
+            canvas.width = w; canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+            const data = ctx.getImageData(0, 0, w, h).data;
+
+            // 标记透明像素，4-连通合并
+            const isTransparent = new Uint8Array(n);
+            const uf = new UF(n);
+            for (let y = 0; y < h; y++) {
+                for (let x = 0; x < w; x++) {
+                    const i = y * w + x;
+                    if (data[i*4+3] < 128) {
+                        isTransparent[i] = 1;
+                        if (x > 0 && isTransparent[i-1]) uf.union(i, i-1);
+                        if (y > 0 && isTransparent[i-w]) uf.union(i, i-w);
+                    }
+                }
+            }
+
+            // 按根节点分组，计算包围盒
+            const map = {};
+            for (let i = 0; i < n; i++) {
+                if (!isTransparent[i]) continue;
+                const root = uf.find(i);
+                if (!map[root]) map[root] = { minX: w, minY: h, maxX: 0, maxY: 0, count: 0 };
+                const r = map[root];
+                const x = i % w, y = (i - x) / w;
+                if (x < r.minX) r.minX = x;
+                if (x > r.maxX) r.maxX = x;
+                if (y < r.minY) r.minY = y;
+                if (y > r.maxY) r.maxY = y;
+                r.count++;
+            }
+
+            // 过滤噪点，按面积排序
+            const regions = Object.values(map)
+                .filter(r => r.count > 5000)
+                .sort((a,b) => b.count - a.count);
+
+            // 自动分类
+            const names = ['最大区域','第二大区域','第三大区域','第四大区域'];
+            const classified = regions.map((r,i) => {
+                r.width = r.maxX - r.minX + 1;
+                r.height = r.maxY - r.minY + 1;
+                const ratio = r.width / r.height;
+                r.type = ratio > 2 ? '(→ 可能是水平公告栏)' :
+                         ratio < 0.6 ? '(↓ 可能是竖直侧栏)' :
+                         r.count > regions[0].count * 0.3 ? '(■ 可能是直播画面)' : '(■ 可能是评论区)';
+                r.name = names[i] || `区域${i+1}`;
+                return r;
+            });
+
+            // 渲染结果
+            let html = `<h2>图片尺寸: ${w} x ${h}px，瞬间分析完成</h2>`;
+            html += `<p>发现 ${regions.length} 个透明镂空区域（已过滤噪点）</p>`;
+            classified.forEach(r => {
+                html += `<div class="region"><h3>${r.name} ${r.type}</h3>
+                    <p>位置: <b>top:${r.minY}px; left:${r.minX}px</b></p>
+                    <p>尺寸: <b>${r.width} x ${r.height}px</b> (宽高比: ${(r.width/r.height).toFixed(2)})</p>
+                    <p>像素数: ${r.count.toLocaleString()}</p></div>`;
+            });
+
+            // 生成 CSS
+            const sorted = [...classified].sort((a,b) => a.minY - b.minY);
+            const titleBar = sorted.find(r => r.width / r.height > 2) || sorted[0];
+            const below = sorted.filter(r => r !== titleBar).sort((a,b) => a.minX - b.minX);
+            const liveArea = below[0], chatArea = below[1];
+
+            html += '<h3 style="margin-top:20px">复制以下CSS变量到直播间UI框架：</h3>';
+            html += '<div class="css-code">';
+            html += `/* #title-bar 顶部公告栏 */\n`;
+            html += `--title-top: ${titleBar.minY}px; --title-left: ${titleBar.minX}px; --title-width: ${titleBar.width}px; --title-height: ${titleBar.height}px;\n\n`;
+            html += `/* #live-area 左侧直播画面 */\n`;
+            html += `--live-top: ${liveArea.minY}px; --live-left: ${liveArea.minX}px; --live-width: ${liveArea.width}px; --live-height: ${liveArea.height}px;\n\n`;
+            html += `/* #chat-area 右侧评论区 */\n`;
+            html += `--chat-top: ${chatArea.minY}px; --chat-left: ${chatArea.minX}px; --chat-width: ${chatArea.width}px; --chat-height: ${chatArea.height}px;`;
+            html += '</div>';
+
+            document.getElementById('results').innerHTML = html;
+
+            // 在预览图上画彩色框
+            const previewDiv = document.getElementById('preview');
+            const previewImg = document.getElementById('preview-img');
+            const scale = previewImg.clientWidth / w;
+            const colors = ['#ff0','#0ff','#f0f'];
+            const allR = [titleBar, liveArea, chatArea];
+            const labels = ['#title-bar','#live-area','#chat-area'];
+            allR.forEach((r,i) => {
+                const box = document.createElement('div');
+                box.className = 'box-overlay';
+                box.style.cssText = `left:${r.minX*scale}px;top:${r.minY*scale}px;width:${r.width*scale}px;height:${r.height*scale}px;border-color:${colors[i]}`;
+                const lbl = document.createElement('div');
+                lbl.className = 'box-label';
+                lbl.style.background = colors[i];
+                lbl.textContent = labels[i];
+                box.appendChild(lbl);
+                previewDiv.appendChild(box);
+            });
+        };
+        img.src = '../assets/直播间UI挖空真.png';
+    </script>
+</body>
+</html>

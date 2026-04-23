@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>直播间UI框架 - 主播模拟器</title>
+    <style>
+        /* ============================================
+         *  基础设置
+         * ============================================ */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+            background-color: #1a1a2e; /* 深色背景，模拟游戏画面 */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* ============================================
+         *  尺寸变量 - 在这里调整所有容器位置！
+         *  所有数值单位为 px，对应 1672x941 画布
+         *
+         *  调整方法：
+         *  1. 在浏览器中打开此文件
+         *  2. F12 打开开发者工具
+         *  3. 选中底层容器，观察是否与透明PNG的镂空区域对齐
+         *  4. 修改下方变量值即可
+         * ============================================ */
+        :root {
+            /* 由 measure-png.mjs 自动测量，精确匹配透明PNG镂空区域 */
+
+            /* #title-bar 顶部公告栏 */
+            --title-top: 48px;
+            --title-left: 273px;
+            --title-width: 915px;
+            --title-height: 73px;
+
+            /* #live-area 左侧直播画面（大块区域） */
+            --live-top: 163px;
+            --live-left: 33px;
+            --live-width: 1256px;
+            --live-height: 701px;
+
+            /* #chat-area 右侧评论区（独立矩形框） */
+            --chat-top: 172px;
+            --chat-left: 1304px;
+            --chat-width: 326px;
+            --chat-height: 652px;
+        }
+
+        /* ============================================
+         *  主容器 - 画布尺寸与UI图一致: 1672x941px
+         * ============================================ */
+        .live-container {
+            width: 1672px;
+            height: 941px;
+            position: relative;
+            background-color: #0d0d1a; /* 兜底深色背景 */
+            overflow: hidden;
+            /* 缩放适配窗口（可选，如需自适应取消注释） */
+            /* transform: scale(min(1, calc(100vw / 1672), calc(100vh / 941)));
+            transform-origin: center center; */
+        }
+
+        /* ============================================
+         *  底层 - 功能内容层 (z-index: 1)
+         *  所有内容放在底层，透明PNG覆盖其上
+         * ============================================ */
+
+        /* ---------- #title-bar 顶部公告栏 ----------
+         * 用途：显示直播间公告、直播类型、欢迎语
+         * 位置：画布顶部中央，横跨左右两栏
+         */
+        #title-bar {
+            position: absolute;
+            top: var(--title-top);
+            left: var(--title-left);
+            width: var(--title-width);
+            height: var(--title-height);
+            background: linear-gradient(135deg, #E8F4F8, #D6ECF0);
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1;
+            overflow: hidden;
+        }
+
+        .title-text {
+            font-size: 28px;
+            font-weight: bold;
+            color: #5DADE2;
+            letter-spacing: 2px;
+        }
+
+        /* ---------- #live-area 左侧直播画面 ----------
+         * 用途：放置直播视频流、电脑桌面背景
+         * 位置：画布左侧大块区域
+         */
+        #live-area {
+            position: absolute;
+            top: var(--live-top);
+            left: var(--live-left);
+            width: var(--live-width);
+            height: var(--live-height);
+            overflow: hidden;
+            z-index: 1;
+            background: #000; /* 无内容时的兜底色 */
+        }
+
+        #live-area img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        /* 弹幕容器 - 浮在直播画面之上 */
+        .danmaku-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 50%;
+            overflow: hidden;
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        .danmaku-item {
+            position: absolute;
+            white-space: nowrap;
+            color: #fff;
+            font-weight: 600;
+            font-size: 16px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+            right: 0;
+            animation: danmaku-scroll 8s linear forwards;
+        }
+
+        @keyframes danmaku-scroll {
+            from { transform: translateX(100%); }
+            to   { transform: translateX(-1000px); }
+        }
+
+        /* ---------- #chat-area 右侧评论区 ----------
+         * 用途：显示直播评论、用户消息、系统提示
+         * 位置：画布右侧独立矩形框，与左侧直播画面并列
+         */
+        #chat-area {
+            position: absolute;
+            top: var(--chat-top);
+            left: var(--chat-left);
+            width: var(--chat-width);
+            height: var(--chat-height);
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            overflow: hidden;
+            padding: 10px;
+            z-index: 1;
+        }
+
+        /* 评论列表 */
+        .chat-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .chat-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 6px;
+        }
+
+        .chat-avatar {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            color: #fff;
+            background: linear-gradient(135deg, #FFB6C1, #FFC0CB);
+        }
+
+        .chat-item:nth-child(even) .chat-avatar {
+            background: linear-gradient(135deg, #87CEFA, #B0E0E6);
+        }
+        .chat-item:nth-child(3n) .chat-avatar {
+            background: linear-gradient(135deg, #98FB98, #90EE90);
+        }
+
+        .chat-username {
+            font-size: 11px;
+            font-weight: bold;
+            color: #5DADE2;
+        }
+
+        .chat-text {
+            font-size: 11px;
+            color: #444;
+            line-height: 1.4;
+            word-wrap: break-word;
+        }
+
+        /* ============================================
+         *  顶层 - UI框架层 (z-index: 10)
+         *  透明PNG覆盖层，边框和装饰在最上方
+         *  pointer-events: none 让点击穿透到底层
+         * ============================================ */
+        .ui-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 1672px;
+            height: 941px;
+            background-image: url('../assets/直播间UI挖空真.png');
+            background-size: 100% 100%;
+            pointer-events: none; /* 关键：鼠标事件穿透到下方内容 */
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="live-container">
+
+        <!-- ========================================
+             底层 (z-index: 1) - 功能内容区
+             所有内容 div 的位置由 CSS 变量控制
+             ======================================== -->
+
+        <!-- 1. 顶部公告栏
+             位置：画布顶部中央
+             用途：直播间公告、欢迎语、直播类型标签 -->
+        <div id="title-bar">
+            <span class="title-text">📢 欢迎来到 PixelQueen 的直播间！</span>
+        </div>
+
+        <!-- 2. 左侧直播画面
+             位置：画布左侧大块区域
+             用途：直播视频流 / 电脑桌面背景
+             内容：默认使用电脑桌面背景图 -->
+        <div id="live-area">
+            <img src="../assets/电脑桌面背景.png" alt="直播画面">
+
+            <!-- 弹幕层 - 浮在直播画面内部 -->
+            <div class="danmaku-layer">
+                <!-- 弹幕会通过JS动态添加到这里 -->
+            </div>
+        </div>
+
+        <!-- 3. 右侧评论区（独立矩形框）
+             位置：画布右侧，与直播画面并列
+             用途：滚动评论列表、用户消息 -->
+        <div id="chat-area">
+            <div class="chat-list">
+                <!-- 预设评论（演示用） -->
+                <div class="chat-item">
+                    <div class="chat-avatar">星</div>
+                    <div>
+                        <div class="chat-username">小星星</div>
+                        <div class="chat-text">主播好可爱!</div>
+                    </div>
+                </div>
+                <div class="chat-item">
+                    <div class="chat-avatar">云</div>
+                    <div>
+                        <div class="chat-username">云朵酱</div>
+                        <div class="chat-text">666</div>
+                    </div>
+                </div>
+                <div class="chat-item">
+                    <div class="chat-avatar">喵</div>
+                    <div>
+                        <div class="chat-username">喵喵子</div>
+                        <div class="chat-text">来啦来啦~</div>
+                    </div>
+                </div>
+                <div class="chat-item">
+                    <div class="chat-avatar">兔</div>
+                    <div>
+                        <div class="chat-username">兔兔</div>
+                        <div class="chat-text">送你小心心❤️</div>
+                    </div>
+                </div>
+                <div class="chat-item">
+                    <div class="chat-avatar">月</div>
+                    <div>
+                        <div class="chat-username">月亮宝宝</div>
+                        <div class="chat-text">今天也要加油哦!</div>
+                    </div>
+                </div>
+                <div class="chat-item">
+                    <div class="chat-avatar">糖</div>
+                    <div>
+                        <div class="chat-username">糖果</div>
+                        <div class="chat-text">打call!</div>
+                    </div>
+                </div>
+                <div class="chat-item">
+                    <div class="chat-avatar">棉</div>
+                    <div>
+                        <div class="chat-username">棉花糖</div>
+                        <div class="chat-text">爱了爱了</div>
+                    </div>
+                </div>
+                <div class="chat-item">
+                    <div class="chat-avatar">彩</div>
+                    <div>
+                        <div class="chat-username">彩虹</div>
+                        <div class="chat-text">主播最棒!</div>
+                    </div>
+                </div>
+                <div class="chat-item">
+                    <div class="chat-avatar">泡</div>
+                    <div>
+                        <div class="chat-username">泡泡</div>
+                        <div class="chat-text">么么哒~</div>
+                    </div>
+                </div>
+                <div class="chat-item">
+                    <div class="chat-avatar">樱</div>
+                    <div>
+                        <div class="chat-username">樱花</div>
+                        <div class="chat-text">支持支持!</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================
+             顶层 (z-index: 10) - 透明UI框架层
+             直播间UI挖空真.png 覆盖在所有内容之上
+             pointer-events: none 确保鼠标事件穿透
+             ======================================== -->
+        <div class="ui-overlay"></div>
+
+    </div>
+
+    <!-- 演示：自动弹幕 -->
+    <script>
+        // 弹幕文本池
+        const danmakuPool = [
+            '哈哈哈哈', '666666', '太好看了吧', '冲冲冲',
+            '主播加油', '前排围观', '来了来了', 'awsl',
+            '笑死我了', '太强了', '弹幕护体', '下次一定',
+        ];
+
+        const danmakuLayer = document.querySelector('.danmaku-layer');
+
+        function addDanmaku() {
+            const el = document.createElement('div');
+            el.className = 'danmaku-item';
+            el.textContent = danmakuPool[Math.floor(Math.random() * danmakuPool.length)];
+            el.style.top = Math.random() * 80 + '%';
+            danmakuLayer.appendChild(el);
+            setTimeout(() => el.remove(), 10000);
+        }
+
+        // 每800ms添加一条弹幕
+        setInterval(addDanmaku, 800);
+        // 初始添加几条
+        for (let i = 0; i < 3; i++) setTimeout(addDanmaku, i * 200);
+    </script>
+
+</body>
+</html>

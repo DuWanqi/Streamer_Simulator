@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小爱的直播间</title>
+    <style>
+        /* 基础设置 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+            background-color: #f0f0f0; /* 背景色，方便预览 */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh; /* 页面居中 */
+        }
+
+        /* 主容器，固定尺寸 1080x700 */
+        .live-container {
+            width: 1080px;
+            height: 700px;
+            position: relative;
+            background-color: #ffffff; /* 兜底背景 */
+            overflow: hidden; /* 防止内容溢出 */
+        }
+
+        /* === 底层 - 功能内容层 (z-index: 1) === */
+
+        /* 1. 顶部公告栏 */
+        .notice-bar {
+            position: absolute;
+            left: 279px;
+            top: 29px;
+            width: 624px;
+            height: 55px;
+            background: linear-gradient(135deg, #E8F4F8, #D6ECF0);
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1;
+        }
+
+        .notice-text {
+            font-size: 28px;
+            font-weight: bold;
+            color: #5DADE2;
+            letter-spacing: 2px;
+        }
+
+        /* 2. 左侧直播画面 */
+        .stream-screen {
+            position: absolute;
+            left: 58px;
+            top: 110px;
+            width: 679px;
+            height: 538px;
+            background-image: url('https://a.lovart.ai/artifacts/user/NtEAsLUkAEDZU9nR.png');
+            background-size: cover;
+            background-position: center;
+            border-radius: 20px;
+            overflow: hidden;
+            z-index: 1;
+        }
+
+        /* 3. 右侧评论区 */
+        .chat-area {
+            position: absolute;
+            left: 808px;
+            top: 110px;
+            width: 215px;
+            height: 538px;
+            background: #FFFFFF;
+            border-radius: 20px;
+            overflow: hidden;
+            padding: 10px;
+            z-index: 1;
+        }
+
+        /* 评论滚动容器 */
+        .chat-scroll-container {
+            position: relative;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        /* 评论列表，用于动画 */
+        .chat-list {
+            animation: scrollUp 30s linear infinite;
+        }
+
+        /* 鼠标悬停暂停滚动 (可选) */
+        .chat-scroll-container:hover .chat-list {
+            animation-play-state: paused;
+        }
+
+        /* 单条评论样式 */
+        .chat-item {
+            display: flex;
+            margin-bottom: 12px;
+            align-items: flex-start; /* 顶部对齐 */
+        }
+
+        .chat-avatar {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background-color: #eee; /* 头像占位色 */
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            color: #fff;
+            background: linear-gradient(135deg, #FFB6C1, #FFC0CB); /* 默认渐变色 */
+        }
+        
+        /* 为了区分头像给不同渐变 */
+        .chat-item:nth-child(even) .chat-avatar {
+             background: linear-gradient(135deg, #87CEFA, #B0E0E6);
+        }
+        .chat-item:nth-child(3n) .chat-avatar {
+             background: linear-gradient(135deg, #98FB98, #90EE90);
+        }
+
+        .chat-content {
+            margin-left: 8px;
+            flex: 1;
+        }
+
+        .chat-username {
+            font-size: 12px;
+            font-weight: bold;
+            color: #5DADE2;
+            margin-bottom: 2px;
+        }
+
+        .chat-text {
+            font-size: 11px;
+            color: #666;
+            line-height: 1.4;
+            word-wrap: break-word; /* 允许长文本换行 */
+        }
+
+        /* 滚动动画关键帧 */
+        @keyframes scrollUp {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(-50%); } /* 因为有两份一样的数据，所以滚动50%即可无缝 */
+        }
+
+        /* === 顶层 - UI框架层 (z-index: 10) === */
+        .ui-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 1080px;
+            height: 700px;
+            background-image: url('https://a.lovart.ai/artifacts/user/MDkL92AOlw1LCPxa.png');
+            background-size: 100% 100%;
+            pointer-events: none; /* 关键：让鼠标事件穿透图片，点击到底层内容 */
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="live-container">
+        <!-- 底层：功能内容 -->
+
+        <!-- 1. 顶部公告栏 -->
+        <div class="notice-bar">
+            <span class="notice-text">欢迎来到小爱的直播间!</span>
+        </div>
+
+        <!-- 2. 左侧直播画面 -->
+        <div class="stream-screen">
+            <!-- 背景图已在 CSS 中设置 -->
+        </div>
+
+        <!-- 3. 右侧评论区 -->
+        <div class="chat-area">
+            <div class="chat-scroll-container">
+                <div class="chat-list">
+                    <!-- 预设评论内容 第一组 -->
+                    <div class="chat-item"><div class="chat-avatar">星</div><div class="chat-content"><div class="chat-username">小星星</div><div class="chat-text">主播好可爱!</div></div></div>
+                    <div class="chat-item"><div class="chat-avatar">云</div><div class="chat-content"><div class="chat-username">云朵酱</div><div class="chat-text">666</div></div></div>
+                    <div class="chat-item"><div class="chat-avatar">喵</div><div class="chat-content"><div class="chat-username">喵喵子</div><div class="chat-text">来啦来啦~</div></div></div>
+                    <div class="chat-item"><div class="chat-avatar">兔</div><div class="chat-content"><div class="chat-username">兔兔</div><div class="chat-text">送你小心心❤️</div></div></div>
+                    <div class="chat-item"><div class="chat-avatar">月</div><div class="chat-content"><div class="chat-username">月亮宝宝</div><div class="chat-text">今天也要加油哦!</div></div></div>
+                    <div class="chat-item"><div class="chat-avatar">糖</div><div class="chat-content"><div class="chat-username">糖果</div><div class="chat-text">打call!</div></div></div>
+                    <div class="chat-item"><div class="chat-avatar">棉</div><div class="chat-content"><div class="chat-username">棉花糖</div><div class="chat-text">爱了爱了</div></div></div>
+                    <div class="chat-item"><div class="chat-avatar">彩</div><div class="chat-content"><div class="chat-username">彩虹</div><div class="chat-text">主播最棒!</div></div></div>
+                    <div class="chat-item"><div class="chat-avatar">泡</div><div class="chat-content"><div class="chat-username">泡泡</div><div class="chat-text">么么哒~</div></div></div>
+                    <div class="chat-item"><div class="chat-avatar">樱</div><div class="chat-content"><div class="chat-username">樱花</div><div class="chat-text">支持支持!</div></div></div>
+
+                    <!-- 预设评论内容 第二组 (复制第一组以实现无缝循环) -->
+                    <div class="chat-item"><div class="chat-avatar">星</div><div class="chat-content"><div class="chat-username">小星星</div><div class="chat-text">主播好可爱!</div></div></div>
+                    <div class="chat-item"><div class="chat-avatar">云</div><div class="chat-content"><div class="chat-username">云朵酱</div><div class="chat-text">666</div></div></div>
+                    <div class="chat-item"><div class="chat-avatar">喵</div><div class="chat-content"><div class="chat-username">喵喵子</div><div class="chat-text">来啦来啦~</div></div></div>
+                    <div class="chat-item"><div class="chat-avatar">兔</div><div class="chat-content"><div class="chat-username">兔兔</div><div class="chat-text">送你小心心❤️</div></div></div>
+                    <div class="chat-item"><div class="chat-avatar">月</div><div class="chat-content"><div class="chat-username">月亮宝宝</div><div class="chat-text">今天也要加油哦!</div></div></div>
+                    <div class="chat-item"><div class="chat-avatar">糖</div><div class="chat-content"><div class="chat-username">糖果</div><div class="chat-text">打call!</div></div></div>
+                    <div class="chat-item"><div class="chat-avatar">棉</div><div class="chat-content"><div class="chat-username">棉花糖</div><div class="chat-text">爱了爱了</div></div></div>
+                    <div class="chat-item"><div class="chat-avatar">彩</div><div class="chat-content"><div class="chat-username">彩虹</div><div class="chat-text">主播最棒!</div></div></div>
+                    <div class="chat-item"><div class="chat-avatar">泡</div><div class="chat-content"><div class="chat-username">泡泡</div><div class="chat-text">么么哒~</div></div></div>
+                    <div class="chat-item"><div class="chat-avatar">樱</div><div class="chat-content"><div class="chat-username">樱花</div><div class="chat-text">支持支持!</div></div></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 顶层：UI框架层 (覆盖在所有内容之上) -->
+        <div class="ui-overlay"></div>
+
+    </div>
+
+</body>
+</html>
