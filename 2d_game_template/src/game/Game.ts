@@ -143,77 +143,238 @@ export class Game {
   }
 
   private renderStartScreen(): void {
+    const state = this.playerData.getState();
+
     const html = `
-      <div class="start-screen" style="
-        width: 100vw;
-        height: 100vh;
-        background-image: url('./begin_background.png');
-        background-size: cover;
-        background-position: center;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: flex-end;
-        font-family: 'Plus Jakarta Sans', 'Noto Sans SC', sans-serif;
-        color: white;
-        position: relative;
-        overflow: hidden;
-        padding-bottom: 80px;
-      ">
-        <!-- 底部渐变遮罩 -->
-        <div style="position: absolute; bottom: 0; left: 0; right: 0; height: 50%; background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%); pointer-events: none;"></div>
-        
-        <!-- 按钮组 -->
-        <div style="position: relative; z-index: 10; display: flex; flex-direction: column; gap: 16px; animation: fadeInUp 0.8s ease-out 0.2s both;">
-          <button id="btn-start" style="
-            padding: 18px 80px;
-            font-size: 1.3rem;
-            font-weight: 700;
-            color: white;
-            background: linear-gradient(135deg, #f49d25 0%, #ffb95e 100%);
-            border: none;
-            border-radius: 50px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 8px 30px rgba(244,157,37,0.4);
-          ">开始游戏</button>
-          
-          <button id="btn-settings" style="
-            padding: 14px 60px;
-            font-size: 1rem;
-            font-weight: 600;
-            color: rgba(255,255,255,0.8);
-            background: rgba(255,255,255,0.15);
-            border: 1px solid rgba(255,255,255,0.2);
-            border-radius: 50px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            backdrop-filter: blur(10px);
-          ">设置</button>
+      <link href="https://cdnjs.cloudflare.com/ajax/libs/remixicon/4.6.0/remixicon.min.css" rel="stylesheet">
+      <style>
+        @font-face {
+          font-family: 'NotoSerifCJKsc-Regular';
+          src: url('https://assets-persist.lovart.ai/agent-static-assets/NotoSerifCJKsc-Regular.otf') format('opentype');
+          font-weight: 400;
+        }
+        @font-face {
+          font-family: 'MiSans-Regular';
+          src: url('https://assets-persist.lovart.ai/agent-static-assets/MiSans-Regular.ttf') format('truetype');
+          font-weight: 400;
+        }
+
+        .start-screen-new {
+          width: 100vw; height: 100vh;
+          background-color: #f7f3e8;
+          color: #2c3e50;
+          font-family: 'MiSans-Regular', sans-serif;
+          overflow: hidden;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          position: relative;
+        }
+
+        .start-screen-new .dissolve-fall {
+          animation: dissolveFall 1.5s cubic-bezier(0.55, 0.085, 0.68, 0.53) forwards;
+        }
+        @keyframes dissolveFall {
+          0% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+          100% { opacity: 0; transform: translateY(200px) scale(0.95); filter: blur(10px); }
+        }
+
+        .start-screen-new .main-container {
+          display: flex; width: 100%; height: 100%;
+          padding: 40px 60px; gap: 60px; z-index: 1;
+          transition: all 0.4s ease;
+        }
+
+        .start-screen-new .poster-section {
+          flex: 0 0 auto; height: 100%;
+          display: flex; align-items: center; justify-content: center;
+          animation: ssnFloat 6s ease-in-out infinite;
+        }
+        @keyframes ssnFloat {
+          0% { transform: translateY(0px); }
+          50% { transform: translateY(-15px); }
+          100% { transform: translateY(0px); }
+        }
+
+        .start-screen-new .poster-image {
+          height: 100%; width: auto; max-width: 50vw;
+          object-fit: contain;
+          box-shadow: 20px 30px 60px rgba(0, 0, 0, 0.08);
+          border-radius: 4px;
+        }
+
+        .start-screen-new .content-section {
+          flex: 1; display: flex; flex-direction: column;
+          justify-content: center; padding-right: 40px;
+        }
+
+        .start-screen-new .title-group { margin-bottom: 80px; }
+
+        .start-screen-new .main-title {
+          font-family: 'NotoSerifCJKsc-Regular', serif;
+          font-size: clamp(36px, 5.5vw, 84px);
+          font-weight: 300; line-height: 1.2; letter-spacing: 4px;
+          color: #1a1a1a; margin-bottom: 20px;
+          text-shadow: 1px 1px 2px rgba(0,0,0,0.05);
+        }
+
+        .start-screen-new .sub-title {
+          font-family: 'MiSans-Regular', sans-serif;
+          font-size: clamp(14px, 1.3vw, 20px);
+          font-weight: 300; letter-spacing: 12px;
+          color: #7f8c8d; text-transform: uppercase;
+        }
+
+        .start-screen-new .menu-list {
+          display: flex; flex-direction: column; gap: 30px;
+          list-style: none; padding: 0; margin: 0;
+        }
+
+        .start-screen-new .menu-item {
+          font-family: 'MiSans-Regular', sans-serif;
+          font-size: clamp(20px, 2vw, 32px);
+          font-weight: 300; letter-spacing: 8px;
+          color: #2c3e50; cursor: pointer;
+          position: relative; width: fit-content;
+          padding: 10px 0; transition: color 0.3s ease;
+          display: flex; align-items: center;
+        }
+        .start-screen-new .menu-item::after {
+          content: ''; position: absolute; bottom: 0; left: 0;
+          width: 0; height: 1px; background-color: #2c3e50;
+          transition: width 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+        }
+        .start-screen-new .menu-item:hover { color: #000; }
+        .start-screen-new .menu-item:hover::after { width: 100%; }
+        .start-screen-new .menu-item i {
+          font-size: 24px; margin-right: 15px;
+          opacity: 0; transform: translateX(-10px);
+          transition: all 0.3s ease;
+        }
+        .start-screen-new .menu-item:hover i {
+          opacity: 1; transform: translateX(0);
+        }
+
+        .start-screen-new .modal-overlay {
+          position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+          background: rgba(247, 243, 232, 0.85);
+          backdrop-filter: blur(10px);
+          display: flex; align-items: center; justify-content: center;
+          z-index: 100; opacity: 0; pointer-events: none;
+          transition: opacity 0.4s ease;
+        }
+        .start-screen-new .modal-overlay.active {
+          opacity: 1; pointer-events: auto;
+        }
+
+        .start-screen-new .modal-content {
+          background: #fffdf8; padding: 60px 80px; border-radius: 2px;
+          box-shadow: 0 40px 80px rgba(0,0,0,0.05);
+          width: 600px; max-width: 90vw;
+          transform: translateY(30px); opacity: 0;
+          transition: all 0.5s cubic-bezier(0.165, 0.84, 0.44, 1);
+          position: relative; border: 1px solid rgba(0,0,0,0.05);
+        }
+        .start-screen-new .modal-overlay.active .modal-content {
+          transform: translateY(0); opacity: 1;
+        }
+
+        .start-screen-new .modal-close {
+          position: absolute; top: 30px; right: 30px;
+          font-size: 28px; color: #7f8c8d; cursor: pointer;
+          transition: color 0.3s;
+        }
+        .start-screen-new .modal-close:hover { color: #2c3e50; }
+
+        .start-screen-new .modal-title {
+          font-family: 'NotoSerifCJKsc-Regular', serif;
+          font-size: 36px; margin-bottom: 40px;
+          font-weight: 300; letter-spacing: 4px;
+        }
+
+        .start-screen-new .form-group { margin-bottom: 30px; }
+        .start-screen-new .form-group label {
+          display: block; font-size: 14px; letter-spacing: 2px;
+          margin-bottom: 10px; color: #7f8c8d; text-transform: uppercase;
+        }
+        .start-screen-new .form-group input {
+          width: 100%; padding: 15px 0;
+          background: transparent; border: none;
+          border-bottom: 1px solid rgba(0,0,0,0.1);
+          font-family: 'MiSans-Regular', sans-serif;
+          font-size: 16px; color: #2c3e50; outline: none;
+          transition: border-color 0.3s;
+        }
+        .start-screen-new .form-group input:focus {
+          border-bottom-color: #2c3e50;
+        }
+
+        .start-screen-new .about-text {
+          font-size: 16px; line-height: 2; color: #555;
+          letter-spacing: 1px; text-align: justify;
+        }
+        .start-screen-new .about-text p { margin-bottom: 20px; }
+
+        .start-screen-new .save-btn {
+          width: 100%; padding: 12px;
+          background: #2c3e50; border: none; border-radius: 2px;
+          color: #fff; font-family: 'MiSans-Regular', sans-serif;
+          font-size: 16px; letter-spacing: 4px;
+          cursor: pointer; transition: background 0.3s;
+        }
+        .start-screen-new .save-btn:hover { background: #1a252f; }
+        .start-screen-new .save-status {
+          text-align: center; font-size: 13px; color: #7f8c8d;
+          margin-top: 12px; opacity: 0; transition: opacity 0.3s;
+        }
+        .start-screen-new .save-status.show { opacity: 1; }
+      </style>
+
+      <div class="start-screen-new">
+        <div class="main-container" id="mainContainer">
+          <div class="poster-section">
+            <img src="https://a.lovart.ai/artifacts/user/YUYoNOB1NTIw0zBy.png" alt="游戏海报" class="poster-image">
+          </div>
+
+          <div class="content-section">
+            <div class="title-group">
+              <h1 class="main-title">主播模拟器·双面人生</h1>
+              <div class="sub-title">Streamer Simulator</div>
+            </div>
+            <ul class="menu-list">
+              <li class="menu-item" id="menu-start"><i class="ri-play-line"></i>开始游戏</li>
+              <li class="menu-item" id="menu-settings"><i class="ri-settings-3-line"></i>设置</li>
+              <li class="menu-item" id="menu-about"><i class="ri-information-line"></i>关于我们</li>
+            </ul>
+          </div>
         </div>
 
-        <!-- 版本信息 -->
-        <p style="position: absolute; bottom: 20px; color: rgba(255,255,255,0.5); font-size: 0.8rem; z-index: 10;">v1.0.0 · AI-Native Game</p>
-      </div>
+        <!-- 设置弹窗 -->
+        <div class="modal-overlay" id="settingsModal">
+          <div class="modal-content">
+            <i class="ri-close-line modal-close" id="close-settings"></i>
+            <h2 class="modal-title">系统配置</h2>
+            <div class="form-group">
+              <label>API Key（Google AI Studio）</label>
+              <input type="password" id="api-key-input" placeholder="不配置则使用默认预设内容" value="${state.apiKey}">
+            </div>
+            <button class="save-btn" id="btn-save-key">保存配置</button>
+            <div class="save-status" id="save-status">已保存</div>
+          </div>
+        </div>
 
-      <style>
-        @keyframes fadeInDown {
-          from { opacity: 0; transform: translateY(-30px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes fadeInUp {
-          from { opacity: 0; transform: translateY(30px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        #btn-start:hover {
-          transform: scale(1.05);
-          box-shadow: 0 12px 40px rgba(244,157,37,0.6);
-        }
-        #btn-settings:hover {
-          background: rgba(255,255,255,0.25);
-          color: white;
-        }
-      </style>
+        <!-- 关于我们弹窗 -->
+        <div class="modal-overlay" id="aboutModal">
+          <div class="modal-content">
+            <i class="ri-close-line modal-close" id="close-about"></i>
+            <h2 class="modal-title">关于我们</h2>
+            <div class="about-text">
+              <p>《主播模拟器·双面人生》致力于探索虚拟与现实的边界。在光鲜亮丽的镜头前与繁杂琐碎的幕后生活中，体验截然不同的人生轨迹。</p>
+              <p>本作采用极简的设计语言，结合水彩墨染的艺术风格，试图传达一种清冷而梦幻的故事氛围。感谢您参与这段独特的数字旅程。</p>
+            </div>
+          </div>
+        </div>
+      </div>
     `;
 
     const element = document.createElement('div');
@@ -221,17 +382,71 @@ export class Game {
     this.uiContainer.appendChild(element);
     this.currentUIElement = element;
 
-    // 绑定事件
-    element.querySelector('#btn-start')?.addEventListener('click', async () => {
-      // 显示开场动画（完整立绘）- 穿越剧情
+    // 点击音效
+    let audioCtx: AudioContext | null = null;
+    const playClickSound = () => {
+      if (!audioCtx) audioCtx = new AudioContext();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(300, audioCtx.currentTime + 0.1);
+      gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.1);
+    };
+    element.querySelectorAll('.menu-item, .modal-close').forEach(item => {
+      item.addEventListener('mousedown', playClickSound);
+    });
+
+    // 开始游戏：溶解坠落转场 → 过场动画 → 分区选择
+    element.querySelector('#menu-start')?.addEventListener('click', async () => {
+      const container = element.querySelector('#mainContainer') as HTMLElement;
+      if (container) {
+        container.classList.add('dissolve-fall');
+        await new Promise<void>(resolve => setTimeout(resolve, 1500));
+      }
       await this.showOpeningScene();
-      // 开场后进入分区选择
       this.playerData.reset();
       this.stateManager.changeScene('category_select');
     });
 
-    element.querySelector('#btn-settings')?.addEventListener('click', () => {
-      this.stateManager.changeScene('settings');
+    // 设置弹窗
+    const settingsModal = element.querySelector('#settingsModal') as HTMLElement;
+    element.querySelector('#menu-settings')?.addEventListener('click', () => {
+      settingsModal?.classList.add('active');
+    });
+    element.querySelector('#close-settings')?.addEventListener('click', () => {
+      settingsModal?.classList.remove('active');
+    });
+    settingsModal?.addEventListener('click', (e) => {
+      if (e.target === settingsModal) settingsModal.classList.remove('active');
+    });
+
+    // 保存 API Key
+    element.querySelector('#btn-save-key')?.addEventListener('click', () => {
+      const input = element.querySelector('#api-key-input') as HTMLInputElement;
+      this.playerData.setApiKey(input.value);
+      this.aiService.setApiKey(input.value);
+      const status = element.querySelector('#save-status');
+      status?.classList.add('show');
+      setTimeout(() => status?.classList.remove('show'), 2000);
+    });
+
+    // 关于弹窗
+    const aboutModal = element.querySelector('#aboutModal') as HTMLElement;
+    element.querySelector('#menu-about')?.addEventListener('click', () => {
+      aboutModal?.classList.add('active');
+    });
+    element.querySelector('#close-about')?.addEventListener('click', () => {
+      aboutModal?.classList.remove('active');
+    });
+    aboutModal?.addEventListener('click', (e) => {
+      if (e.target === aboutModal) aboutModal.classList.remove('active');
     });
   }
 

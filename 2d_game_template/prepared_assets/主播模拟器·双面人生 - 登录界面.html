@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>主播模拟器·双面人生 - 登录</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/remixicon/4.6.0/remixicon.min.css" rel="stylesheet">
+    <style>
+        @font-face {
+            font-family: 'NotoSerifCJKsc-Regular';
+            src: url('https://assets-persist.lovart.ai/agent-static-assets/NotoSerifCJKsc-Regular.otf') format('opentype');
+            font-weight: 400;
+        }
+        @font-face {
+            font-family: 'MiSans-Regular';
+            src: url('https://assets-persist.lovart.ai/agent-static-assets/MiSans-Regular.ttf') format('truetype');
+            font-weight: 400;
+        }
+
+        :root {
+            --bg-color: #f7f3e8; /* 米黄色，匹配海报背景 */
+            --text-color: #2c3e50;
+            --accent-color: #7f8c8d;
+            --transition-speed: 0.4s;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            width: 1920px;
+            height: 1080px; /* 固定16:9比例高度 */
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'MiSans-Regular', sans-serif;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        /* 溶解坠落转场动画类 */
+        .dissolve-fall {
+            animation: dissolveFall 1.5s cubic-bezier(0.55, 0.085, 0.68, 0.53) forwards;
+        }
+
+        @keyframes dissolveFall {
+            0% {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+                filter: blur(0);
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(200px) scale(0.95);
+                filter: blur(10px);
+            }
+        }
+
+        /* 主容器 */
+        .main-container {
+            display: flex;
+            width: 100%;
+            height: 100%;
+            padding: 60px 120px;
+            gap: 100px;
+            z-index: 1;
+            transition: all var(--transition-speed) ease;
+        }
+
+        /* 左侧海报区 */
+        .poster-section {
+            flex: 0 0 auto;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: float 6s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-15px); }
+            100% { transform: translateY(0px); }
+        }
+
+        .poster-image {
+            height: 100%;
+            width: auto;
+            max-width: 1024px;
+            object-fit: contain;
+            box-shadow: 20px 30px 60px rgba(0, 0, 0, 0.08);
+            border-radius: 4px;
+        }
+
+        /* 右侧内容区 */
+        .content-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding-right: 80px;
+        }
+
+        .title-group {
+            margin-bottom: 100px;
+        }
+
+        .main-title {
+            font-family: 'NotoSerifCJKsc-Regular', serif;
+            font-size: 84px;
+            font-weight: 300;
+            line-height: 1.2;
+            letter-spacing: 4px;
+            color: #1a1a1a;
+            margin-bottom: 20px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.05);
+        }
+
+        .sub-title {
+            font-family: 'MiSans-Regular', sans-serif;
+            font-size: 20px;
+            font-weight: 300;
+            letter-spacing: 12px;
+            color: var(--accent-color);
+            text-transform: uppercase;
+        }
+
+        /* 菜单区 */
+        .menu-list {
+            display: flex;
+            flex-direction: column;
+            gap: 40px;
+            list-style: none;
+        }
+
+        .menu-item {
+            font-family: 'MiSans-Regular', sans-serif;
+            font-size: 32px;
+            font-weight: 300;
+            letter-spacing: 8px;
+            color: var(--text-color);
+            cursor: pointer;
+            position: relative;
+            width: fit-content;
+            padding: 10px 0;
+            transition: color 0.3s ease;
+            display: flex;
+            align-items: center;
+        }
+
+        .menu-item::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 0;
+            height: 1px;
+            background-color: var(--text-color);
+            transition: width 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+        }
+
+        .menu-item:hover {
+            color: #000;
+        }
+
+        .menu-item:hover::after {
+            width: 100%;
+        }
+
+        .menu-item i {
+            font-size: 24px;
+            margin-right: 15px;
+            opacity: 0;
+            transform: translateX(-10px);
+            transition: all 0.3s ease;
+        }
+
+        .menu-item:hover i {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        /* 弹窗通用样式 */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(247, 243, 232, 0.85); /* 米黄色半透明 */
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.4s ease;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal-content {
+            background: #fffdf8;
+            padding: 60px 80px;
+            border-radius: 2px;
+            box-shadow: 0 40px 80px rgba(0,0,0,0.05);
+            width: 600px;
+            transform: translateY(30px);
+            opacity: 0;
+            transition: all 0.5s cubic-bezier(0.165, 0.84, 0.44, 1);
+            position: relative;
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+
+        .modal-overlay.active .modal-content {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 30px;
+            right: 30px;
+            font-size: 28px;
+            color: var(--accent-color);
+            cursor: pointer;
+            transition: color 0.3s;
+        }
+
+        .modal-close:hover {
+            color: var(--text-color);
+        }
+
+        .modal-title {
+            font-family: 'NotoSerifCJKsc-Regular', serif;
+            font-size: 36px;
+            margin-bottom: 40px;
+            font-weight: 300;
+            letter-spacing: 4px;
+        }
+
+        /* 设置表单 */
+        .form-group {
+            margin-bottom: 30px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 14px;
+            letter-spacing: 2px;
+            margin-bottom: 10px;
+            color: var(--accent-color);
+            text-transform: uppercase;
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 15px 0;
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid rgba(0,0,0,0.1);
+            font-family: 'MiSans-Regular', sans-serif;
+            font-size: 16px;
+            color: var(--text-color);
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus, .form-group select:focus {
+            border-bottom-color: var(--text-color);
+        }
+
+        /* 关于我们内容 */
+        .about-text {
+            font-size: 16px;
+            line-height: 2;
+            color: #555;
+            letter-spacing: 1px;
+            text-align: justify;
+        }
+        
+        .about-text p {
+            margin-bottom: 20px;
+        }
+
+    </style>
+</head>
+<body>
+
+    <!-- 简单的音频合成器用于产生点击音效，避免外部依赖 -->
+    <script>
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playClickSound() {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(800, audioCtx.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(300, audioCtx.currentTime + 0.1);
+            
+            gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            
+            oscillator.start();
+            oscillator.stop(audioCtx.currentTime + 0.1);
+        }
+    </script>
+
+    <div class="main-container" id="mainContainer">
+        <!-- 左侧海报 -->
+        <div class="poster-section">
+            <img src="https://a.lovart.ai/artifacts/user/YUYoNOB1NTIw0zBy.png" alt="游戏海报" class="poster-image">
+        </div>
+
+        <!-- 右侧内容 -->
+        <div class="content-section">
+            <div class="title-group">
+                <h1 class="main-title">主播模拟器·双面人生</h1>
+                <div class="sub-title">Streamer Simulator</div>
+            </div>
+
+            <ul class="menu-list">
+                <li class="menu-item" onclick="handleStartGame()">
+                    <i class="ri-play-line"></i>开始游戏
+                </li>
+                <li class="menu-item" onclick="openModal('settingsModal')">
+                    <i class="ri-settings-3-line"></i>设置
+                </li>
+                <li class="menu-item" onclick="openModal('aboutModal')">
+                    <i class="ri-information-line"></i>关于我们
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- 设置弹窗 -->
+    <div class="modal-overlay" id="settingsModal">
+        <div class="modal-content">
+            <i class="ri-close-line modal-close" onclick="closeModal('settingsModal')"></i>
+            <h2 class="modal-title">系统配置</h2>
+            
+            <div class="form-group">
+                <label>API Key</label>
+                <input type="password" placeholder="请输入您的 API Key">
+            </div>
+            
+            <div class="form-group">
+                <label>模型供应商</label>
+                <select>
+                    <option>OpenAI</option>
+                    <option>Anthropic</option>
+                    <option>Custom</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>模型名称</label>
+                <input type="text" placeholder="例如: gpt-4-turbo" value="gpt-4-turbo">
+            </div>
+        </div>
+    </div>
+
+    <!-- 关于我们弹窗 -->
+    <div class="modal-overlay" id="aboutModal">
+        <div class="modal-content">
+            <i class="ri-close-line modal-close" onclick="closeModal('aboutModal')"></i>
+            <h2 class="modal-title">关于我们</h2>
+            <div class="about-text">
+                <p>《主播模拟器·双面人生》致力于探索虚拟与现实的边界。在光鲜亮丽的镜头前与繁杂琐碎的幕后生活中，体验截然不同的人生轨迹。</p>
+                <p>本作采用极简的设计语言，结合水彩墨染的艺术风格，试图传达一种清冷而梦幻的故事氛围。感谢您参与这段独特的数字旅程。</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 绑定点击音效到所有按钮
+        document.querySelectorAll('.menu-item, .modal-close').forEach(item => {
+            item.addEventListener('mousedown', playClickSound);
+        });
+
+        // 弹窗控制
+        function openModal(id) {
+            document.getElementById(id).classList.add('active');
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.remove('active');
+        }
+
+        // 点击背景关闭弹窗
+        document.querySelectorAll('.modal-overlay').forEach(overlay => {
+            overlay.addEventListener('click', function(e) {
+                if (e.target === this) {
+                    this.classList.remove('active');
+                }
+            });
+        });
+
+        // 开始游戏转场
+        function handleStartGame() {
+            const container = document.getElementById('mainContainer');
+            container.classList.add('dissolve-fall');
+            
+            // 模拟进入游戏后的操作
+            setTimeout(() => {
+                console.log("进入游戏逻辑");
+                // window.location.href = '/game';
+            }, 1500);
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,1512 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>二次元Windows桌面模拟器</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/remixicon/4.6.0/remixicon.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap');
+
+        :root {
+            --primary-pink: #FF6B9D;
+            --primary-blue: #4A90E2;
+            --primary-purple: #9B59B6;
+            --glass-bg: rgba(255, 255, 255, 0.6);
+            --glass-border: rgba(255, 255, 255, 0.4);
+            --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            --text-dark: #333;
+            --text-light: #666;
+            --wechat-green: #07C160;
+            --weibo-red: #E6162D;
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 20px;
+            --transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            user-select: none;
+        }
+
+        body {
+            width: 1920px;
+            height: 1080px;
+            overflow: hidden;
+            background: url('https://a.lovart.ai/artifacts/agent/yBv5yqE4cY5ZwP7U.png') center/cover no-repeat;
+            position: relative;
+        }
+
+        /* 桌面图标 */
+        .desktop {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: calc(100% - 50px);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            align-items: flex-start;
+        }
+
+        .desktop-icon {
+            width: 80px;
+            height: 100px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            cursor: pointer;
+            border-radius: var(--radius-sm);
+            transition: var(--transition);
+            padding: 10px;
+        }
+
+        .desktop-icon:hover {
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(5px);
+        }
+
+        .desktop-icon i {
+            font-size: 48px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .desktop-icon.wechat i { color: #07C160; }
+        .desktop-icon.weibo i { color: #E6162D; }
+
+        .desktop-icon span {
+            color: white;
+            font-size: 14px;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+            text-align: center;
+        }
+
+        /* 任务栏 */
+        .taskbar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 50px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border-top: 1px solid var(--glass-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+            z-index: 9999;
+        }
+
+        .taskbar-left, .taskbar-center, .taskbar-right {
+            display: flex;
+            align-items: center;
+            height: 100%;
+        }
+
+        .taskbar-center {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            gap: 15px;
+        }
+
+        .start-btn {
+            font-size: 24px;
+            color: var(--primary-blue);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .start-btn:hover {
+            transform: scale(1.1);
+        }
+
+        .taskbar-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            cursor: pointer;
+            transition: var(--transition);
+            position: relative;
+        }
+
+        .taskbar-icon:hover {
+            background: rgba(255,255,255,0.5);
+        }
+
+        .taskbar-icon.active::after {
+            content: '';
+            position: absolute;
+            bottom: 2px;
+            width: 20px;
+            height: 3px;
+            background: var(--primary-blue);
+            border-radius: 2px;
+        }
+
+        .taskbar-icon.wechat i { color: #07C160; }
+        .taskbar-icon.weibo i { color: #E6162D; }
+
+        .sys-tray {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            font-size: 14px;
+            color: var(--text-dark);
+        }
+
+        .time-date {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            line-height: 1.2;
+        }
+
+        /* 窗口通用样式 */
+        .window {
+            position: absolute;
+            background: var(--glass-bg);
+            backdrop-filter: blur(15px);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-md);
+            box-shadow: var(--glass-shadow);
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+            z-index: 1000;
+        }
+
+        .window.active {
+            z-index: 1001;
+        }
+
+        .title-bar {
+            height: 40px;
+            background: rgba(255,255,255,0.3);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 15px;
+            cursor: move;
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .title-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-dark);
+        }
+
+        .window-controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        .control-btn {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 16px;
+            transition: var(--transition);
+            color: var(--text-dark);
+        }
+
+        .control-btn:hover {
+            background: rgba(0,0,0,0.1);
+        }
+
+        .control-btn.close:hover {
+            background: #ff4757;
+            color: white;
+        }
+
+        /* 微信窗口 */
+        #wechat-win {
+            width: 900px;
+            height: 600px;
+            top: 200px;
+            left: 200px;
+        }
+
+        .wechat-body {
+            display: flex;
+            height: calc(100% - 40px);
+        }
+
+        .wc-sidebar {
+            width: 60px;
+            background: rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px 0;
+            gap: 20px;
+            border-right: 1px solid var(--glass-border);
+        }
+
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: var(--radius-sm);
+            object-fit: cover;
+            border: 2px solid white;
+        }
+
+        .wc-nav-icon {
+            font-size: 24px;
+            color: #888;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .wc-nav-icon:hover, .wc-nav-icon.active {
+            color: var(--wechat-green);
+        }
+
+        .wc-list-area {
+            width: 280px;
+            background: rgba(255,255,255,0.4);
+            border-right: 1px solid var(--glass-border);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .search-box {
+            padding: 15px;
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 8px 12px;
+            border: none;
+            background: rgba(255,255,255,0.5);
+            border-radius: 20px;
+            font-size: 12px;
+            outline: none;
+        }
+
+        .contact-list {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .contact-item {
+            display: flex;
+            padding: 15px;
+            gap: 10px;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .contact-item:hover, .contact-item.active {
+            background: rgba(255,255,255,0.6);
+        }
+
+        .contact-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: var(--radius-sm);
+            background: var(--primary-pink);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+        
+        .contact-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: var(--radius-sm);
+        }
+
+        .contact-info {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 4px;
+        }
+
+        .contact-name {
+            font-size: 14px;
+            color: var(--text-dark);
+            font-weight: 500;
+        }
+
+        .contact-last-msg {
+            font-size: 12px;
+            color: var(--text-light);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .wc-chat-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: rgba(245,245,245,0.5);
+        }
+
+        .chat-header {
+            height: 60px;
+            padding: 0 20px;
+            display: flex;
+            align-items: center;
+            font-size: 18px;
+            font-weight: bold;
+            color: var(--text-dark);
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .msg {
+            display: flex;
+            gap: 10px;
+            max-width: 80%;
+        }
+
+        .msg.npc { align-self: flex-start; }
+        .msg.player { 
+            align-self: flex-end; 
+            flex-direction: row-reverse;
+        }
+
+        .msg-bubble {
+            padding: 10px 15px;
+            border-radius: var(--radius-md);
+            font-size: 14px;
+            line-height: 1.5;
+            position: relative;
+        }
+
+        .msg.npc .msg-bubble {
+            background: white;
+            color: var(--text-dark);
+            border-top-left-radius: 0;
+        }
+
+        .msg.player .msg-bubble {
+            background: linear-gradient(135deg, var(--primary-blue), #6AB0F3);
+            color: white;
+            border-top-right-radius: 0;
+        }
+
+        .chat-input-area {
+            height: 160px;
+            border-top: 1px solid var(--glass-border);
+            display: flex;
+            flex-direction: column;
+            background: white;
+        }
+
+        .chat-toolbar {
+            padding: 10px 15px;
+            display: flex;
+            gap: 15px;
+            color: var(--text-light);
+        }
+
+        .chat-toolbar i {
+            cursor: pointer;
+            font-size: 20px;
+            transition: var(--transition);
+        }
+
+        .chat-toolbar i:hover { color: var(--wechat-green); }
+
+        .chat-input {
+            flex: 1;
+            padding: 0 15px;
+            border: none;
+            resize: none;
+            outline: none;
+            font-size: 14px;
+            background: transparent;
+        }
+
+        .chat-actions {
+            padding: 10px 15px;
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .btn-send {
+            padding: 6px 20px;
+            background: var(--wechat-green);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: var(--transition);
+        }
+
+        .btn-send:hover { background: #06ad56; }
+
+        /* 微博窗口 */
+        #weibo-win {
+            width: 1000px;
+            height: 700px;
+            top: 150px;
+            left: 400px;
+        }
+        
+        .weibo-body {
+            display: flex;
+            flex-direction: column;
+            height: calc(100% - 40px);
+        }
+        
+        .wb-header {
+            height: 60px;
+            background: rgba(255,255,255,0.8);
+            border-bottom: 1px solid var(--glass-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+        }
+        
+        .wb-logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--weibo-red);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .wb-search {
+            width: 300px;
+            height: 36px;
+            background: #f0f2f5;
+            border-radius: 18px;
+            display: flex;
+            align-items: center;
+            padding: 0 15px;
+            gap: 10px;
+        }
+        
+        .wb-search input {
+            border: none;
+            background: transparent;
+            outline: none;
+            width: 100%;
+            font-size: 14px;
+        }
+        
+        .wb-user-actions {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .btn-publish {
+            background: linear-gradient(135deg, var(--primary-pink), var(--primary-purple));
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: var(--transition);
+        }
+        
+        .btn-publish:hover {
+            opacity: 0.9;
+            transform: translateY(-2px);
+        }
+        
+        .wb-main {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            background: rgba(240,242,245,0.5);
+        }
+        
+        .wb-sidebar {
+            width: 200px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .wb-user-card {
+            background: rgba(255,255,255,0.8);
+            border-radius: var(--radius-md);
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        
+        .wb-user-card .avatar {
+            width: 60px;
+            height: 60px;
+            margin-bottom: 10px;
+            border-radius: 50%;
+        }
+        
+        .wb-nav {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .wb-nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 15px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: var(--transition);
+            font-size: 16px;
+            color: var(--text-dark);
+        }
+        
+        .wb-nav-item:hover, .wb-nav-item.active {
+            background: rgba(255,255,255,0.8);
+            color: var(--primary-pink);
+            font-weight: bold;
+        }
+        
+        .wb-feed {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .wb-post {
+            background: rgba(255,255,255,0.9);
+            border-radius: var(--radius-md);
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        
+        .wb-post-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .wb-post-header .avatar {
+            border-radius: 50%;
+        }
+        
+        .wb-post-info {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .wb-post-name {
+            font-weight: bold;
+            color: var(--text-dark);
+            font-size: 15px;
+        }
+        
+        .wb-post-time {
+            font-size: 12px;
+            color: var(--text-light);
+        }
+        
+        .wb-post-content {
+            font-size: 15px;
+            line-height: 1.6;
+            color: var(--text-dark);
+            margin-bottom: 15px;
+        }
+        
+        .wb-post-actions {
+            display: flex;
+            border-top: 1px solid #eee;
+            padding-top: 15px;
+        }
+        
+        .wb-action-btn {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 5px;
+            color: var(--text-light);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        
+        .wb-action-btn:hover {
+            color: var(--primary-pink);
+        }
+        
+        .wb-action-btn.liked i {
+            color: var(--weibo-red);
+        }
+        
+        .wb-comments {
+            margin-top: 15px;
+            background: #f9f9f9;
+            border-radius: var(--radius-sm);
+            padding: 15px;
+            display: none;
+        }
+        
+        .wb-comments.active {
+            display: block;
+        }
+        
+        .comment-item {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .comment-content {
+            flex: 1;
+            font-size: 14px;
+        }
+        
+        .comment-name {
+            font-weight: bold;
+            color: var(--primary-blue);
+            margin-right: 5px;
+        }
+        
+        .comment-input-area {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .comment-input-area input {
+            flex: 1;
+            padding: 8px 15px;
+            border: 1px solid #ddd;
+            border-radius: 20px;
+            outline: none;
+        }
+        
+        .comment-input-area button {
+            padding: 0 15px;
+            background: var(--primary-blue);
+            color: white;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+        }
+        
+        .wb-right-sidebar {
+            width: 260px;
+            padding: 20px;
+            padding-left: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .hot-search-card {
+            background: rgba(255,255,255,0.9);
+            border-radius: var(--radius-md);
+            padding: 15px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        
+        .card-title {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .hot-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .hot-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .hot-item:hover .hot-title {
+            color: var(--primary-pink);
+        }
+        
+        .hot-num {
+            width: 20px;
+            text-align: center;
+            font-weight: bold;
+            color: #999;
+        }
+        
+        .hot-item:nth-child(1) .hot-num { color: #f5222d; }
+        .hot-item:nth-child(2) .hot-num { color: #fa8c16; }
+        .hot-item:nth-child(3) .hot-num { color: #fadb14; }
+        
+        .hot-title {
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: var(--text-dark);
+            transition: var(--transition);
+        }
+        
+        .hot-heat {
+            font-size: 12px;
+            color: var(--text-light);
+        }
+        
+        /* 发布微博弹窗 */
+        .modal-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(5px);
+            z-index: 2000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .publish-modal {
+            width: 500px;
+            background: white;
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        .modal-header {
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            border-bottom: 1px solid #eee;
+            font-weight: bold;
+        }
+        
+        .modal-close {
+            cursor: pointer;
+            font-size: 20px;
+            color: #999;
+        }
+        
+        .modal-body {
+            padding: 20px;
+        }
+        
+        .publish-textarea {
+            width: 100%;
+            height: 150px;
+            border: none;
+            resize: none;
+            outline: none;
+            font-size: 16px;
+        }
+        
+        .modal-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 20px 20px;
+        }
+        
+        .publish-tools {
+            display: flex;
+            gap: 15px;
+            color: var(--primary-blue);
+            font-size: 20px;
+        }
+        
+        .publish-tools i { cursor: pointer; }
+        
+        .char-count {
+            color: #999;
+            font-size: 12px;
+            margin-right: 15px;
+        }
+        
+        .btn-do-publish {
+            background: var(--primary-pink);
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+        }
+
+        /* 热搜详情页 */
+        .hot-detail-view {
+            display: none;
+            flex-direction: column;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .hot-detail-header {
+            padding: 15px 20px;
+            background: white;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .btn-back {
+            cursor: pointer;
+            font-size: 20px;
+            color: var(--text-dark);
+        }
+        
+        .hot-detail-title {
+            font-size: 18px;
+            font-weight: bold;
+        }
+        
+        .hot-detail-feed {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* 滚动条美化 */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(0,0,0,0.2);
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 桌面图标 -->
+    <div class="desktop">
+        <div class="desktop-icon wechat" id="icon-wechat">
+            <i class="ri-wechat-fill"></i>
+            <span>微信</span>
+        </div>
+        <div class="desktop-icon weibo" id="icon-weibo">
+            <i class="ri-weibo-fill"></i>
+            <span>微博</span>
+        </div>
+    </div>
+
+    <!-- 任务栏 -->
+    <div class="taskbar">
+        <div class="taskbar-left">
+            <i class="ri-windows-fill start-btn"></i>
+        </div>
+        <div class="taskbar-center">
+            <div class="taskbar-icon wechat" id="task-wechat">
+                <i class="ri-wechat-fill"></i>
+            </div>
+            <div class="taskbar-icon weibo" id="task-weibo">
+                <i class="ri-weibo-fill"></i>
+            </div>
+        </div>
+        <div class="taskbar-right">
+            <div class="sys-tray">
+                <i class="ri-wifi-fill"></i>
+                <i class="ri-volume-up-fill"></i>
+                <i class="ri-battery-fill"></i>
+                <div class="time-date">
+                    <span id="sys-time">15:30</span>
+                    <span id="sys-date">4月22日</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 微信窗口 -->
+    <div class="window" id="wechat-win">
+        <div class="title-bar" id="wechat-title">
+            <div class="title-info">
+                <i class="ri-wechat-fill" style="color:#07C160"></i> 微信
+            </div>
+            <div class="window-controls">
+                <div class="control-btn min" data-target="wechat-win"><i class="ri-subtract-line"></i></div>
+                <div class="control-btn close" data-target="wechat-win"><i class="ri-close-line"></i></div>
+            </div>
+        </div>
+        <div class="wechat-body">
+            <div class="wc-sidebar">
+                <img src="https://a.lovart.ai/artifacts/user/GI29DPzUIu57Fp34.png" class="avatar" alt="Player">
+                <i class="ri-chat-3-line wc-nav-icon active"></i>
+                <i class="ri-contacts-line wc-nav-icon"></i>
+                <i class="ri-compass-3-line wc-nav-icon"></i>
+                <i class="ri-folder-2-line wc-nav-icon"></i>
+                <div style="flex:1"></div>
+                <i class="ri-settings-3-line wc-nav-icon"></i>
+            </div>
+            <div class="wc-list-area">
+                <div class="search-box">
+                    <input type="text" class="search-input" placeholder="搜索">
+                </div>
+                <div class="contact-list" id="wc-contact-list">
+                    <!-- 联系人列表将由JS动态生成 -->
+                </div>
+            </div>
+            <div class="wc-chat-area">
+                <div class="chat-header" id="wc-chat-name">小樱</div>
+                <div class="chat-messages" id="wc-chat-messages">
+                    <!-- 消息列表将由JS动态生成 -->
+                </div>
+                <div class="chat-input-area">
+                    <div class="chat-toolbar">
+                        <i class="ri-emotion-line"></i>
+                        <i class="ri-folder-2-line"></i>
+                        <i class="ri-scissors-cut-line"></i>
+                        <i class="ri-chat-history-line"></i>
+                    </div>
+                    <textarea class="chat-input" id="wc-input" placeholder="输入消息..."></textarea>
+                    <div class="chat-actions">
+                        <button class="btn-send" id="wc-send">发送(S)</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 微博窗口 -->
+    <div class="window" id="weibo-win">
+        <div class="title-bar" id="weibo-title">
+            <div class="title-info">
+                <i class="ri-weibo-fill" style="color:#E6162D"></i> 微博
+            </div>
+            <div class="window-controls">
+                <div class="control-btn min" data-target="weibo-win"><i class="ri-subtract-line"></i></div>
+                <div class="control-btn close" data-target="weibo-win"><i class="ri-close-line"></i></div>
+            </div>
+        </div>
+        <div class="weibo-body">
+            <div class="wb-header">
+                <div class="wb-logo">
+                    <i class="ri-weibo-fill"></i> 微博
+                </div>
+                <div class="wb-search">
+                    <i class="ri-search-line" style="color:#999"></i>
+                    <input type="text" placeholder="大家都在搜：新版本更新">
+                </div>
+                <div class="wb-user-actions">
+                    <button class="btn-publish" id="btn-show-publish"><i class="ri-quill-pen-line"></i> 发布</button>
+                    <img src="https://a.lovart.ai/artifacts/user/GI29DPzUIu57Fp34.png" style="width:36px;height:36px;border-radius:50%;object-fit:cover;">
+                </div>
+            </div>
+            
+            <div class="wb-main" id="wb-main-view">
+                <div class="wb-sidebar">
+                    <div class="wb-user-card">
+                        <img src="https://a.lovart.ai/artifacts/user/GI29DPzUIu57Fp34.png" class="avatar">
+                        <div style="font-weight:bold;margin-bottom:5px;">小爱</div>
+                        <div style="font-size:12px;color:#999;display:flex;justify-content:center;gap:15px;">
+                            <span>关注 128</span>
+                            <span>粉丝 2.5w</span>
+                        </div>
+                    </div>
+                    <div class="wb-nav">
+                        <div class="wb-nav-item active" id="nav-home"><i class="ri-home-5-line"></i> 首页</div>
+                        <div class="wb-nav-item"><i class="ri-fire-line"></i> 热门</div>
+                        <div class="wb-nav-item"><i class="ri-message-3-line"></i> 消息</div>
+                        <div class="wb-nav-item"><i class="ri-user-3-line"></i> 我的</div>
+                    </div>
+                </div>
+                
+                <div class="wb-feed" id="wb-feed-list">
+                    <!-- 微博列表由JS生成 -->
+                </div>
+                
+                <div class="wb-right-sidebar">
+                    <div class="hot-search-card">
+                        <div class="card-title"><i class="ri-fire-fill" style="color:#f5222d"></i> 微博热搜</div>
+                        <div class="hot-list" id="wb-hot-list">
+                            <!-- 热搜列表由JS生成 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 热搜详情视图 (默认隐藏) -->
+            <div class="hot-detail-view" id="wb-hot-detail">
+                <div class="hot-detail-header">
+                    <i class="ri-arrow-left-line btn-back" id="btn-hot-back"></i>
+                    <div class="hot-detail-title" id="hot-detail-title">#热搜话题#</div>
+                    <div style="color:#999;font-size:14px;" id="hot-detail-heat">1.2M</div>
+                </div>
+                <div class="hot-detail-feed" id="hot-detail-feed-list">
+                    <!-- 话题相关的微博 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 发布微博弹窗 -->
+    <div class="modal-overlay" id="publish-modal">
+        <div class="publish-modal">
+            <div class="modal-header">
+                发布微博
+                <i class="ri-close-line modal-close" id="btn-close-publish"></i>
+            </div>
+            <div class="modal-body">
+                <textarea class="publish-textarea" id="publish-input" placeholder="有什么新鲜事想分享？"></textarea>
+            </div>
+            <div class="modal-footer">
+                <div class="publish-tools">
+                    <i class="ri-emotion-line"></i>
+                    <i class="ri-image-line"></i>
+                    <i class="ri-hashtag"></i>
+                </div>
+                <div style="display:flex;align-items:center;">
+                    <span class="char-count" id="publish-count">0/140</span>
+                    <button class="btn-do-publish" id="btn-do-publish">发布</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- 数据定义 ---
+            const npcs = {
+                'sakura': { name: '小樱', color: '#FFB6C1', msgs: ['今天天气真好呢！', '要一起去买蛋糕吗？', '期待明天的活动~'] },
+                'rin': { name: '凛', color: '#87CEFA', msgs: ['练习辛苦了。', '别忘了晚上的会议。', '这家店的咖啡不错。'] },
+                'yui': { name: '优衣', color: '#DDA0DD', msgs: ['前排提示，有新剧情更新啦！', '我的号抽到SSR了！', '一起联机打boss吧~'] },
+                'setsuna': { name: '雪菜', color: '#F0E68C', msgs: ['最近的歌练得怎么样了？', '演唱会要加油哦。', '想听听你的意见。'] },
+                'mashiro': { name: '真白', color: '#E0FFFF', msgs: ['画完了一张新图。', '...肚子饿了。', '年轮蛋糕，想吃。'] }
+            };
+
+            const hotSearches = [
+                { title: '#新版本更新#', heat: '3.5M' },
+                { title: '#小樱生日快乐#', heat: '2.8M' },
+                { title: '#SSR爆率调整#', heat: '2.1M' },
+                { title: '#游戏周年庆#', heat: '1.9M' },
+                { title: '#夏日泳装活动#', heat: '1.5M' },
+                { title: '#新角色预告#', heat: '1.2M' },
+                { title: '#竞技场登顶阵容#', heat: '980K' },
+                { title: '#优衣新单曲#', heat: '850K' },
+                { title: '#真白画集发售#', heat: '720K' },
+                { title: '#服务器维护补偿#', heat: '500K' }
+            ];
+
+            let weiboPosts = [
+                {
+                    id: 1,
+                    author: '小樱',
+                    color: '#FFB6C1',
+                    time: '10分钟前',
+                    content: '今天做了特别好吃的樱花布丁！想要分享给大家~ 🌸 #日常分享#',
+                    likes: 125,
+                    comments: [{ name: '优衣', content: '哇！看起来好好吃，留一点给我！' }, { name: '小爱', content: '小樱手艺越来越好了👍' }],
+                    shares: 12
+                },
+                {
+                    id: 2,
+                    author: '凛',
+                    color: '#87CEFA',
+                    time: '半小时前',
+                    content: '刚结束今天的训练，虽然很累但是感觉很有收获。新版本更新的内容大家都体验了吗？ #新版本更新#',
+                    likes: 342,
+                    comments: [{ name: '雪菜', content: '辛苦了，要注意休息哦。' }],
+                    shares: 45
+                },
+                {
+                    id: 3,
+                    author: '优衣',
+                    color: '#DDA0DD',
+                    time: '2小时前',
+                    content: '一发入魂！这就是欧洲人的实力吗！哈哈哈哈！😎 #日常分享#',
+                    likes: 89,
+                    comments: [{ name: '凛', content: '...吸欧气' }, { name: '小爱', content: '恭喜呀！太强了！' }],
+                    shares: 5
+                }
+            ];
+
+            let activeChat = 'sakura';
+            let zIndexCounter = 1000;
+
+            // --- 窗口管理 ---
+            const makeDraggable = (winId, handleId) => {
+                const win = document.getElementById(winId);
+                const handle = document.getElementById(handleId);
+                let isDragging = false, startX, startY, startLeft, startTop;
+
+                handle.addEventListener('mousedown', (e) => {
+                    if (e.target.closest('.window-controls')) return;
+                    isDragging = true;
+                    startX = e.clientX;
+                    startY = e.clientY;
+                    startLeft = parseInt(window.getComputedStyle(win).left) || 0;
+                    startTop = parseInt(window.getComputedStyle(win).top) || 0;
+                    win.style.zIndex = ++zIndexCounter;
+                });
+
+                document.addEventListener('mousemove', (e) => {
+                    if (!isDragging) return;
+                    let newLeft = startLeft + (e.clientX - startX);
+                    let newTop = startTop + (e.clientY - startY);
+                    
+                    // 边界限制
+                    newLeft = Math.max(0, Math.min(newLeft, window.innerWidth - win.offsetWidth));
+                    newTop = Math.max(0, Math.min(newTop, window.innerHeight - win.offsetHeight - 50));
+                    
+                    win.style.left = newLeft + 'px';
+                    win.style.top = newTop + 'px';
+                });
+
+                document.addEventListener('mouseup', () => { isDragging = false; });
+                
+                win.addEventListener('mousedown', () => { win.style.zIndex = ++zIndexCounter; });
+            };
+
+            const toggleWindow = (winId, taskIconId) => {
+                const win = document.getElementById(winId);
+                const taskIcon = document.getElementById(taskIconId);
+                if (win.style.display === 'flex') {
+                    win.style.display = 'none';
+                    taskIcon.classList.remove('active');
+                } else {
+                    win.style.display = 'flex';
+                    win.style.zIndex = ++zIndexCounter;
+                    taskIcon.classList.add('active');
+                }
+            };
+
+            // 绑定桌面和任务栏图标
+            document.getElementById('icon-wechat').addEventListener('click', () => toggleWindow('wechat-win', 'task-wechat'));
+            document.getElementById('icon-weibo').addEventListener('click', () => toggleWindow('weibo-win', 'task-weibo'));
+            document.getElementById('task-wechat').addEventListener('click', () => toggleWindow('wechat-win', 'task-wechat'));
+            document.getElementById('task-weibo').addEventListener('click', () => toggleWindow('weibo-win', 'task-weibo'));
+
+            // 窗口控件
+            document.querySelectorAll('.control-btn.close, .control-btn.min').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const targetId = e.currentTarget.dataset.target;
+                    document.getElementById(targetId).style.display = 'none';
+                    document.getElementById(targetId === 'wechat-win' ? 'task-wechat' : 'task-weibo').classList.remove('active');
+                });
+            });
+
+            makeDraggable('wechat-win', 'wechat-title');
+            makeDraggable('weibo-win', 'weibo-title');
+
+            // --- 微信功能 ---
+            const chatHistory = {};
+            Object.keys(npcs).forEach(key => { chatHistory[key] = []; });
+
+            const renderContactList = () => {
+                const list = document.getElementById('wc-contact-list');
+                list.innerHTML = '';
+                Object.entries(npcs).forEach(([key, npc]) => {
+                    const lastMsg = chatHistory[key].length > 0 ? chatHistory[key][chatHistory[key].length - 1].content : npc.msgs[0];
+                    const item = document.createElement('div');
+                    item.className = `contact-item ${key === activeChat ? 'active' : ''}`;
+                    item.dataset.id = key;
+                    item.innerHTML = `
+                        <div class="contact-avatar" style="background:${npc.color}">${npc.name[0]}</div>
+                        <div class="contact-info">
+                            <div class="contact-name">${npc.name}</div>
+                            <div class="contact-last-msg">${lastMsg}</div>
+                        </div>
+                    `;
+                    item.addEventListener('click', () => {
+                        activeChat = key;
+                        renderContactList();
+                        renderChat();
+                    });
+                    list.appendChild(item);
+                });
+            };
+
+            const renderChat = () => {
+                document.getElementById('wc-chat-name').textContent = npcs[activeChat].name;
+                const msgContainer = document.getElementById('wc-chat-messages');
+                msgContainer.innerHTML = '';
+                
+                // 初始消息
+                if (chatHistory[activeChat].length === 0) {
+                    addMsgToDom('npc', npcs[activeChat].msgs[0], npcs[activeChat]);
+                } else {
+                    chatHistory[activeChat].forEach(msg => {
+                        addMsgToDom(msg.type, msg.content, msg.type === 'npc' ? npcs[activeChat] : {color: '#4A90E2', name: '我'});
+                    });
+                }
+                msgContainer.scrollTop = msgContainer.scrollHeight;
+            };
+
+            const addMsgToDom = (type, content, user) => {
+                const msgContainer = document.getElementById('wc-chat-messages');
+                const div = document.createElement('div');
+                div.className = `msg ${type}`;
+                
+                let avatarHtml = type === 'npc' 
+                    ? `<div class="contact-avatar" style="background:${user.color}; width:36px; height:36px; flex-shrink:0;">${user.name[0]}</div>`
+                    : `<img src="https://a.lovart.ai/artifacts/user/GI29DPzUIu57Fp34.png" style="width:36px; height:36px; border-radius:8px; flex-shrink:0;">`;
+                
+                div.innerHTML = `
+                    ${type === 'npc' ? avatarHtml : ''}
+                    <div class="msg-bubble">${content}</div>
+                    ${type === 'player' ? avatarHtml : ''}
+                `;
+                msgContainer.appendChild(div);
+                msgContainer.scrollTop = msgContainer.scrollHeight;
+            };
+
+            const sendWechatMsg = () => {
+                const input = document.getElementById('wc-input');
+                const text = input.value.trim();
+                if (!text) return;
+                
+                chatHistory[activeChat].push({type: 'player', content: text});
+                addMsgToDom('player', text, {name: '我'});
+                input.value = '';
+                renderContactList();
+
+                // NPC回复
+                setTimeout(() => {
+                    const reply = npcs[activeChat].msgs[Math.floor(Math.random() * npcs[activeChat].msgs.length)];
+                    chatHistory[activeChat].push({type: 'npc', content: reply});
+                    if (activeChat === activeChat) { // 确保仍在当前聊天
+                        addMsgToDom('npc', reply, npcs[activeChat]);
+                    }
+                    renderContactList();
+                }, 1000 + Math.random() * 1000);
+            };
+
+            document.getElementById('wc-send').addEventListener('click', sendWechatMsg);
+            document.getElementById('wc-input').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendWechatMsg(); }
+            });
+
+            // --- 微博功能 ---
+            const renderWeiboPosts = (containerId, postsToRender = weiboPosts) => {
+                const container = document.getElementById(containerId);
+                container.innerHTML = '';
+                
+                postsToRender.forEach(post => {
+                    const postEl = document.createElement('div');
+                    postEl.className = 'wb-post';
+                    postEl.innerHTML = `
+                        <div class="wb-post-header">
+                            <div class="contact-avatar" style="background:${post.color}; width:40px; height:40px; border-radius:50%;">${post.author === '小爱' ? '<img src="https://a.lovart.ai/artifacts/user/GI29DPzUIu57Fp34.png" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">' : post.author[0]}</div>
+                            <div class="wb-post-info">
+                                <div class="wb-post-name">${post.author}</div>
+                                <div class="wb-post-time">${post.time}</div>
+                            </div>
+                        </div>
+                        <div class="wb-post-content">${post.content}</div>
+                        <div class="wb-post-actions">
+                            <div class="wb-action-btn action-share" data-id="${post.id}"><i class="ri-share-forward-line"></i> <span>${post.shares}</span></div>
+                            <div class="wb-action-btn action-comment" data-id="${post.id}"><i class="ri-chat-1-line"></i> <span>${post.comments.length}</span></div>
+                            <div class="wb-action-btn action-like" data-id="${post.id}"><i class="ri-heart-3-line"></i> <span>${post.likes}</span></div>
+                        </div>
+                        <div class="wb-comments" id="comments-${post.id}">
+                            ${post.comments.map(c => `
+                                <div class="comment-item">
+                                    <div class="comment-content"><span class="comment-name">${c.name}:</span>${c.content}</div>
+                                </div>
+                            `).join('')}
+                            <div class="comment-input-area">
+                                <input type="text" placeholder="发表评论..." id="c-input-${post.id}">
+                                <button class="btn-send-comment" data-id="${post.id}">发送</button>
+                            </div>
+                        </div>
+                    `;
+                    container.appendChild(postEl);
+                });
+            };
+
+            const renderHotSearches = () => {
+                const list = document.getElementById('wb-hot-list');
+                list.innerHTML = '';
+                hotSearches.forEach((item, index) => {
+                    const div = document.createElement('div');
+                    div.className = 'hot-item';
+                    div.innerHTML = `
+                        <div class="hot-num">${index + 1}</div>
+                        <div class="hot-title">${item.title}</div>
+                        <div class="hot-heat">${item.heat}</div>
+                    `;
+                    div.addEventListener('click', () => {
+                        document.getElementById('wb-main-view').style.display = 'none';
+                        document.getElementById('wb-hot-detail').style.display = 'flex';
+                        document.getElementById('hot-detail-title').textContent = item.title;
+                        document.getElementById('hot-detail-heat').textContent = item.heat;
+                        
+                        // 筛选相关微博 (简单模拟)
+                        const relatedPosts = weiboPosts.filter(p => p.content.includes(item.title) || Math.random() > 0.5);
+                        renderWeiboPosts('hot-detail-feed-list', relatedPosts.length ? relatedPosts : weiboPosts.slice(0, 1));
+                    });
+                    list.appendChild(div);
+                });
+            };
+
+            // 微博事件委托
+            document.getElementById('weibo-win').addEventListener('click', (e) => {
+                const target = e.target.closest('.wb-action-btn');
+                if (!target) return;
+                
+                const postId = parseInt(target.dataset.id);
+                const post = weiboPosts.find(p => p.id === postId);
+                if (!post) return;
+
+                if (target.classList.contains('action-like')) {
+                    const isLiked = target.classList.contains('liked');
+                    if (isLiked) {
+                        target.classList.remove('liked');
+                        post.likes--;
+                        target.querySelector('i').className = 'ri-heart-3-line';
+                    } else {
+                        target.classList.add('liked');
+                        post.likes++;
+                        target.querySelector('i').className = 'ri-heart-3-fill';
+                    }
+                    target.querySelector('span').textContent = post.likes;
+                } 
+                else if (target.classList.contains('action-share')) {
+                    post.shares++;
+                    target.querySelector('span').textContent = post.shares;
+                }
+                else if (target.classList.contains('action-comment')) {
+                    const commentArea = document.getElementById(`comments-${postId}`);
+                    if (commentArea) commentArea.classList.toggle('active');
+                }
+            });
+
+            // 发送评论委托
+            document.getElementById('weibo-win').addEventListener('click', (e) => {
+                if (!e.target.classList.contains('btn-send-comment')) return;
+                const postId = parseInt(e.target.dataset.id);
+                const input = document.getElementById(`c-input-${postId}`);
+                const text = input.value.trim();
+                if (!text) return;
+                
+                const post = weiboPosts.find(p => p.id === postId);
+                post.comments.push({ name: '小爱', content: text });
+                
+                // 重新渲染当前视图
+                if (document.getElementById('wb-main-view').style.display !== 'none') {
+                    renderWeiboPosts('wb-feed-list');
+                    document.getElementById(`comments-${postId}`).classList.add('active'); // 保持展开
+                } else {
+                    const relatedPosts = weiboPosts.filter(p => p.content.includes(document.getElementById('hot-detail-title').textContent) || Math.random() > 0.5);
+                    renderWeiboPosts('hot-detail-feed-list', relatedPosts.length ? relatedPosts : weiboPosts.slice(0, 1));
+                }
+            });
+
+            // 热搜返回
+            document.getElementById('btn-hot-back').addEventListener('click', () => {
+                document.getElementById('wb-hot-detail').style.display = 'none';
+                document.getElementById('wb-main-view').style.display = 'flex';
+                renderWeiboPosts('wb-feed-list');
+            });
+
+            // 导航点击
+            document.getElementById('nav-home').addEventListener('click', () => {
+                document.getElementById('wb-hot-detail').style.display = 'none';
+                document.getElementById('wb-main-view').style.display = 'flex';
+                renderWeiboPosts('wb-feed-list');
+            });
+
+            // 发布微博逻辑
+            const modal = document.getElementById('publish-modal');
+            const pubInput = document.getElementById('publish-input');
+            const pubCount = document.getElementById('publish-count');
+
+            document.getElementById('btn-show-publish').addEventListener('click', () => modal.style.display = 'flex');
+            document.getElementById('btn-close-publish').addEventListener('click', () => modal.style.display = 'none');
+            
+            pubInput.addEventListener('input', () => {
+                pubCount.textContent = `${pubInput.value.length}/140`;
+            });
+
+            document.getElementById('btn-do-publish').addEventListener('click', () => {
+                const text = pubInput.value.trim();
+                if (!text) return;
+                
+                const newPost = {
+                    id: Date.now(),
+                    author: '小爱',
+                    color: '#FF6B9D',
+                    time: '刚刚',
+                    content: text,
+                    likes: 0,
+                    comments: [],
+                    shares: 0
+                };
+                
+                weiboPosts.unshift(newPost);
+                renderWeiboPosts('wb-feed-list');
+                
+                modal.style.display = 'none';
+                pubInput.value = '';
+                pubCount.textContent = '0/140';
+            });
+
+            // 初始化渲染
+            renderContactList();
+            renderChat();
+            renderWeiboPosts('wb-feed-list');
+            renderHotSearches();
+            
+            // 简单更新时间
+            setInterval(() => {
+                const now = new Date();
+                document.getElementById('sys-time').textContent = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+            }, 60000);
+        });
+    </script>
+</body>
+</html>
