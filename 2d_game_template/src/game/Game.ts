@@ -333,7 +333,7 @@ export class Game {
       <div class="start-screen-new">
         <div class="main-container" id="mainContainer">
           <div class="poster-section">
-            <img src="https://a.lovart.ai/artifacts/user/YUYoNOB1NTIw0zBy.png" alt="游戏海报" class="poster-image">
+            <img src="海报2.png" alt="游戏海报" class="poster-image">
           </div>
 
           <div class="content-section">
@@ -3975,59 +3975,265 @@ export class Game {
 
   private openApps: Set<string> = new Set();
 
-  /**
-   * 渲染电脑桌面
-   */
+  // ==================== 电脑桌面系统（二次元Windows风格） ====================
+
   private renderComputerDesktop(): void {
-    console.log('[DEBUG] renderComputerDesktop 被调用');
+    const state = this.playerData.getState();
+    const survival = state.survival || { rentDue: 0, utilitiesDue: 0 };
     const now = new Date();
     const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+    const dateStr = `${now.getMonth() + 1}月${now.getDate()}日`;
+
+    // Game NPC data
+    const npcList: { id: string; name: string; color: string; msgs: string[]; lastMsg: string }[] = [
+      { id: 'landlady', name: '房东太太', color: '#B8860B', msgs: ['房租记得交哦', '年轻人要努力啊', '要按时交租'], lastMsg: survival.rentDue > 0 ? `已拖欠${survival.rentDue}天房租` : '房租记得交哦' },
+      { id: 'kexin', name: '可心', color: '#FF69B4', msgs: ['嗨！最近直播怎么样？', '一起加油！', '我也要开播啦', '明天一起吃饭？'], lastMsg: '在吗？' },
+      { id: 'mom', name: '妈妈', color: '#9370DB', msgs: ['照顾好自己', '妈妈想你', '注意身体', '有空回家看看'], lastMsg: '注意身体' },
+      { id: 'yueya', name: '月牙儿', color: '#4169E1', msgs: ['加油吧，新人~', '这个行业没那么简单', '有机会可以合作', '你的直播我看了，还行'], lastMsg: '加油吧，新人~' },
+    ];
+    if (state.npcRelations?.doudou > 0) {
+      npcList.splice(3, 0, { id: 'doudou', name: '豆豆', color: '#DEB887', msgs: ['汪汪！', '（摇尾巴）', '（蹭蹭）', '（舔手）'], lastMsg: '汪汪！' });
+    }
+
+    // Game Weibo posts
+    const weiboPosts = [
+      { id: 1, author: '月牙儿', color: '#4169E1', time: '10分钟前', content: '今天直播突破了10万在线！感谢大家支持❤️ 新人们也要加油哦～ #月牙儿日常#', likes: 2847, shares: 356, comments: [{ name: '小爱', content: '恭喜月牙儿姐！太厉害了！' }, { name: '甜甜圈', content: '永远支持月牙儿！' }] },
+      { id: 2, author: '可心', color: '#FF69B4', time: '半小时前', content: '今天的直播翻车了哈哈😂 但粉丝说翻车更有意思？新人主播的日常就是这样吧～ #新人主播#', likes: 156, shares: 23, comments: [{ name: '小爱', content: '可心加油！翻车也是一种节目效果' }, { name: '追星少女', content: '可心太可爱了！关注了！' }] },
+      { id: 3, author: '铁粉阿伟', color: '#E67E22', time: '1小时前', content: '有没有人觉得小爱最近越来越好了？从第一天直播就开始关注，肉眼可见的进步💪 #小爱加油#', likes: 89, shares: 12, comments: [{ name: '甜橙味', content: '同感！我也是第一批粉丝' }, { name: '月牙儿', content: '嗯，新人里有潜力的～' }] },
+      { id: 4, author: '吃瓜群众小王', color: '#27AE60', time: '2小时前', content: '听说最近有个主播住出租屋直播火了，也太真实了吧，感觉在看自己 #主播出租屋#', likes: 234, shares: 56, comments: [{ name: '打工人小李', content: '这就是我们的生活啊' }, { name: '夜猫子', content: '蹲一个ID，想去看看' }] },
+      { id: 5, author: '甜橙味', color: '#F39C12', time: '3小时前', content: '小爱的弹幕氛围真的好好，不像有些直播间那么乌烟瘴气，这才是我想要的直播间🌸', likes: 67, shares: 8, comments: [{ name: '铁粉阿伟', content: '老粉认证！从一开始就这样' }, { name: '可心', content: '嘿嘿，我也有去看哦～' }] },
+    ];
+
+    const hotSearches = this.hotSearchSystem.getCurrentHotSearches(10);
+    const npcKeys = npcList.map(n => n.id);
 
     const html = `
-      <div class="computer-desktop" id="computer-desktop">
-        <!-- Windows风格桌面背景 -->
-        <div class="desktop-wallpaper"></div>
-        
-        <!-- 桌面图标区域 -->
-        <div class="desktop-icons">
-          <!-- 微信APP图标 -->
-          <div class="desktop-icon" id="desktop-icon-wechat" data-app="wechat">
-            <div class="desktop-icon-img">💬</div>
-            <div class="desktop-icon-text">微信</div>
+      <link href="https://cdnjs.cloudflare.com/ajax/libs/remixicon/4.6.0/remixicon.min.css" rel="stylesheet">
+      <style>
+        .dsim{width:100vw;height:100vh;overflow:hidden;position:relative;font-family:'Noto Sans SC',-apple-system,BlinkMacSystemFont,sans-serif;user-select:none;background:url('电脑桌面背景.png') center/cover no-repeat}
+        .dsim .dsk{position:absolute;top:0;left:0;width:100%;height:calc(100% - 50px);padding:20px;display:flex;flex-direction:column;gap:20px;align-items:flex-start}
+        .dsim .dsk-icon{width:80px;height:100px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;cursor:pointer;border-radius:8px;transition:all .3s;padding:10px}
+        .dsim .dsk-icon:hover{background:rgba(255,255,255,.2);backdrop-filter:blur(5px)}
+        .dsim .dsk-icon i{font-size:48px;text-shadow:0 2px 4px rgba(0,0,0,.3)}
+        .dsim .dsk-icon.wc i{color:#07C160} .dsim .dsk-icon.wb i{color:#E6162D}
+        .dsim .dsk-icon span{color:#fff;font-size:14px;text-shadow:0 1px 2px rgba(0,0,0,.8);text-align:center}
+        .dsim .tbar{position:absolute;bottom:0;left:0;width:100%;height:50px;background:rgba(255,255,255,.6);backdrop-filter:blur(20px);border-top:1px solid rgba(255,255,255,.4);display:flex;justify-content:space-between;align-items:center;padding:0 20px;z-index:9999}
+        .dsim .tbar-c{position:absolute;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:15px;height:100%}
+        .dsim .tbar-icon{width:40px;height:40px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer;transition:all .3s;position:relative}
+        .dsim .tbar-icon:hover{background:rgba(255,255,255,.5)}
+        .dsim .tbar-icon.active::after{content:'';position:absolute;bottom:2px;width:20px;height:3px;background:#4A90E2;border-radius:2px}
+        .dsim .tbar-icon.wc i{color:#07C160} .dsim .tbar-icon.wb i{color:#E6162D}
+        .dsim .sys-tray{display:flex;align-items:center;gap:15px;font-size:14px;color:#333}
+        .dsim .time-date{display:flex;flex-direction:column;align-items:end;line-height:1.2}
+        .dsim .close-ds{margin-left:15px;padding:4px 10px;background:rgba(255,0,0,.15);border:1px solid rgba(255,0,0,.3);border-radius:4px;color:#c00;cursor:pointer;font-size:12px;transition:all .2s}
+        .dsim .close-ds:hover{background:rgba(255,0,0,.3)}
+
+        .dsim .win{position:absolute;background:rgba(255,255,255,.6);backdrop-filter:blur(15px);border:1px solid rgba(255,255,255,.4);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.1);display:none;flex-direction:column;overflow:hidden;z-index:1000}
+        .dsim .tbar-win{height:40px;background:rgba(255,255,255,.3);display:flex;justify-content:space-between;align-items:center;padding:0 15px;cursor:move;border-bottom:1px solid rgba(255,255,255,.4)}
+        .dsim .tbar-info{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:500;color:#333}
+        .dsim .win-ctrls{display:flex;gap:10px}
+        .dsim .ctrl-btn{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;transition:all .3s;color:#333}
+        .dsim .ctrl-btn:hover{background:rgba(0,0,0,.1)}
+        .dsim .ctrl-btn.close:hover{background:#ff4757;color:#fff}
+
+        /* WeChat */
+        .dsim #wc-win{width:900px;height:600px;top:80px;left:100px}
+        .dsim .wc-body{display:flex;height:calc(100% - 40px)}
+        .dsim .wc-side{width:60px;background:rgba(0,0,0,.05);display:flex;flex-direction:column;align-items:center;padding:20px 0;gap:20px;border-right:1px solid rgba(255,255,255,.4)}
+        .dsim .wc-side i{font-size:24px;color:#888;cursor:pointer;transition:all .3s}
+        .dsim .wc-side i:hover,.dsim .wc-side i.active{color:#07C160}
+        .dsim .wc-list{width:280px;background:rgba(255,255,255,.4);border-right:1px solid rgba(255,255,255,.4);display:flex;flex-direction:column}
+        .dsim .wc-search{padding:15px;border-bottom:1px solid rgba(255,255,255,.4)}
+        .dsim .wc-search input{width:100%;padding:8px 12px;border:none;background:rgba(255,255,255,.5);border-radius:20px;font-size:12px;outline:none}
+        .dsim .wc-contacts{flex:1;overflow-y:auto}
+        .dsim .wc-ct{display:flex;padding:15px;gap:10px;cursor:pointer;transition:all .3s}
+        .dsim .wc-ct:hover,.dsim .wc-ct.active{background:rgba(255,255,255,.6)}
+        .dsim .wc-avatar{width:40px;height:40px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:bold;font-size:16px;flex-shrink:0}
+        .dsim .wc-ct-info{flex:1;display:flex;flex-direction:column;justify-content:center;gap:4px;min-width:0}
+        .dsim .wc-ct-name{font-size:14px;color:#333;font-weight:500}
+        .dsim .wc-ct-msg{font-size:12px;color:#666;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .dsim .wc-chat{flex:1;display:flex;flex-direction:column;background:rgba(245,245,245,.5)}
+        .dsim .wc-chat-hdr{height:60px;padding:0 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,.4)}
+        .dsim .wc-chat-hdr .hdr-name{font-size:18px;font-weight:bold;color:#333}
+        .dsim .wc-msgs{flex:1;padding:20px;overflow-y:auto;display:flex;flex-direction:column;gap:15px}
+        .dsim .msg{display:flex;gap:10px;max-width:80%}
+        .dsim .msg.npc{align-self:flex-start} .dsim .msg.player{align-self:flex-end;flex-direction:row-reverse}
+        .dsim .msg-bubble{padding:10px 15px;border-radius:12px;font-size:14px;line-height:1.5}
+        .dsim .msg.npc .msg-bubble{background:#fff;color:#333;border-top-left-radius:0}
+        .dsim .msg.player .msg-bubble{background:linear-gradient(135deg,#4A90E2,#6AB0F3);color:#fff;border-top-right-radius:0}
+        .dsim .wc-input-area{border-top:1px solid rgba(255,255,255,.4);display:flex;flex-direction:column;background:#fff}
+        .dsim .wc-toolbar{padding:10px 15px;display:flex;gap:15px;color:#666}
+        .dsim .wc-toolbar i{cursor:pointer;font-size:20px;transition:all .3s} .dsim .wc-toolbar i:hover{color:#07C160}
+        .dsim .wc-inp{flex:1;padding:0 15px;border:none;resize:none;outline:none;font-size:14px;background:transparent;font-family:inherit}
+        .dsim .wc-acts{padding:10px 15px;display:flex;justify-content:flex-end}
+        .dsim .wc-send{padding:6px 20px;background:#07C160;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:14px;transition:all .3s}
+        .dsim .wc-send:hover{background:#06ad56}
+        .dsim .pay-btns{display:flex;gap:8px}
+        .dsim .pay-btn{padding:4px 12px;color:#fff;border:none;border-radius:4px;font-size:12px;cursor:pointer;transition:all .2s}
+        .dsim .pay-btn:disabled{opacity:.4;cursor:default}
+        .dsim .pay-rent{background:#07c160} .dsim .pay-util{background:#409eff}
+
+        /* Weibo */
+        .dsim #wb-win{width:1000px;height:700px;top:60px;left:250px}
+        .dsim .wb-body{display:flex;flex-direction:column;height:calc(100% - 40px)}
+        .dsim .wb-hdr{height:60px;background:rgba(255,255,255,.8);border-bottom:1px solid rgba(255,255,255,.4);display:flex;align-items:center;justify-content:space-between;padding:0 20px}
+        .dsim .wb-logo{font-size:24px;font-weight:bold;color:#E6162D;display:flex;align-items:center;gap:8px}
+        .dsim .wb-search{width:300px;height:36px;background:#f0f2f5;border-radius:18px;display:flex;align-items:center;padding:0 15px;gap:10px}
+        .dsim .wb-search input{border:none;background:transparent;outline:none;width:100%;font-size:14px}
+        .dsim .wb-usr-acts{display:flex;align-items:center;gap:15px}
+        .dsim .btn-pub{background:linear-gradient(135deg,#FF6B9D,#9B59B6);color:#fff;border:none;padding:8px 20px;border-radius:20px;cursor:pointer;font-weight:bold;transition:all .3s}
+        .dsim .btn-pub:hover{opacity:.9;transform:translateY(-2px)}
+        .dsim .wb-main{display:flex;flex:1;overflow:hidden;background:rgba(240,242,245,.5)}
+        .dsim .wb-sidebar{width:200px;padding:20px;display:flex;flex-direction:column;gap:20px}
+        .dsim .wb-usr-card{background:rgba(255,255,255,.8);border-radius:12px;padding:20px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.05)}
+        .dsim .wb-usr-card .avatar{width:60px;height:60px;margin:0 auto 10px;border-radius:50%;background:#FF6B9D;display:flex;align-items:center;justify-content:center;font-size:28px;color:#fff}
+        .dsim .wb-nav{display:flex;flex-direction:column;gap:10px}
+        .dsim .wb-nav-item{display:flex;align-items:center;gap:10px;padding:12px 15px;border-radius:8px;cursor:pointer;transition:all .3s;font-size:16px;color:#333}
+        .dsim .wb-nav-item:hover,.dsim .wb-nav-item.active{background:rgba(255,255,255,.8);color:#FF6B9D;font-weight:bold}
+        .dsim .wb-feed{flex:1;padding:20px;overflow-y:auto;display:flex;flex-direction:column;gap:20px}
+        .dsim .wb-post{background:rgba(255,255,255,.9);border-radius:12px;padding:20px;box-shadow:0 2px 10px rgba(0,0,0,.05)}
+        .dsim .wb-post-hdr{display:flex;align-items:center;gap:10px;margin-bottom:15px}
+        .dsim .wb-post-avatar{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:bold;font-size:16px;flex-shrink:0}
+        .dsim .wb-post-info{display:flex;flex-direction:column}
+        .dsim .wb-post-name{font-weight:bold;color:#333;font-size:15px}
+        .dsim .wb-post-time{font-size:12px;color:#666}
+        .dsim .wb-post-content{font-size:15px;line-height:1.6;color:#333;margin-bottom:15px}
+        .dsim .wb-post-acts{display:flex;border-top:1px solid #eee;padding-top:15px}
+        .dsim .wb-act{flex:1;display:flex;justify-content:center;align-items:center;gap:5px;color:#666;cursor:pointer;transition:all .3s}
+        .dsim .wb-act:hover{color:#FF6B9D} .dsim .wb-act.liked i{color:#E6162D}
+        .dsim .wb-comments{margin-top:15px;background:#f9f9f9;border-radius:8px;padding:15px;display:none}
+        .dsim .wb-comments.active{display:block}
+        .dsim .cmt-item{display:flex;gap:10px;margin-bottom:12px;font-size:14px}
+        .dsim .cmt-name{font-weight:bold;color:#4A90E2;margin-right:5px}
+        .dsim .cmt-input-area{display:flex;gap:10px;margin-top:12px}
+        .dsim .cmt-input-area input{flex:1;padding:8px 15px;border:1px solid #ddd;border-radius:20px;outline:none}
+        .dsim .cmt-input-area button{padding:0 15px;background:#4A90E2;color:#fff;border:none;border-radius:20px;cursor:pointer}
+        .dsim .wb-right{width:260px;padding:20px;padding-left:0;display:flex;flex-direction:column;gap:20px}
+        .dsim .hot-card{background:rgba(255,255,255,.9);border-radius:12px;padding:15px;box-shadow:0 2px 10px rgba(0,0,0,.05)}
+        .dsim .card-title{font-size:16px;font-weight:bold;margin-bottom:15px;display:flex;align-items:center;gap:5px}
+        .dsim .hot-item{display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px;padding:4px 0;transition:all .2s}
+        .dsim .hot-item:hover .hot-title{color:#FF6B9D}
+        .dsim .hot-num{width:20px;text-align:center;font-weight:bold;color:#999}
+        .dsim .hot-item:nth-child(1) .hot-num{color:#f5222d} .dsim .hot-item:nth-child(2) .hot-num{color:#fa8c16} .dsim .hot-item:nth-child(3) .hot-num{color:#fadb14}
+        .dsim .hot-title{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#333;transition:all .3s}
+        .dsim .hot-heat{font-size:12px;color:#666}
+        .dsim .hot-detail{display:none;flex-direction:column;width:100%;height:100%}
+        .dsim .hot-detail-hdr{padding:15px 20px;background:#fff;border-bottom:1px solid #eee;display:flex;align-items:center;gap:15px}
+        .dsim .hot-detail-hdr .btn-back{cursor:pointer;font-size:20px;color:#333}
+        .dsim .hot-detail-hdr .hot-detail-title{font-size:18px;font-weight:bold}
+        .dsim .hot-detail-feed{flex:1;padding:20px;overflow-y:auto;display:flex;flex-direction:column;gap:20px}
+
+        .dsim .pub-modal{position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);backdrop-filter:blur(5px);z-index:2000;display:none;align-items:center;justify-content:center}
+        .dsim .pub-modal-box{width:500px;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.2)}
+        .dsim .pub-modal-hdr{height:50px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;border-bottom:1px solid #eee;font-weight:bold}
+        .dsim .pub-modal-close{cursor:pointer;font-size:20px;color:#999}
+        .dsim .pub-modal-body{padding:20px}
+        .dsim .pub-ta{width:100%;height:150px;border:none;resize:none;outline:none;font-size:16px;font-family:inherit}
+        .dsim .pub-modal-ft{display:flex;align-items:center;justify-content:space-between;padding:10px 20px 20px}
+        .dsim .pub-tools{display:flex;gap:15px;color:#4A90E2;font-size:20px}
+        .dsim .pub-tools i{cursor:pointer}
+        .dsim .char-count{color:#999;font-size:12px;margin-right:15px}
+        .dsim .btn-do-pub{background:#FF6B9D;color:#fff;border:none;padding:8px 20px;border-radius:20px;cursor:pointer}
+
+        .dsim ::-webkit-scrollbar{width:6px} .dsim ::-webkit-scrollbar-track{background:transparent} .dsim ::-webkit-scrollbar-thumb{background:rgba(0,0,0,.2);border-radius:3px}
+      </style>
+
+      <div class="dsim">
+        <div class="dsk">
+          <div class="dsk-icon wc" id="ds-icon-wc"><i class="ri-wechat-fill"></i><span>微信</span></div>
+          <div class="dsk-icon wb" id="ds-icon-wb"><i class="ri-weibo-fill"></i><span>微博</span></div>
+        </div>
+
+        <div class="tbar">
+          <i class="ri-windows-fill" style="font-size:24px;color:#4A90E2;cursor:pointer"></i>
+          <div class="tbar-c">
+            <div class="tbar-icon wc" id="ds-task-wc"><i class="ri-wechat-fill"></i></div>
+            <div class="tbar-icon wb" id="ds-task-wb"><i class="ri-weibo-fill"></i></div>
           </div>
-          
-          <!-- 微博APP图标 -->
-          <div class="desktop-icon" id="desktop-icon-weibo" data-app="weibo">
-            <div class="desktop-icon-img">📱</div>
-            <div class="desktop-icon-text">微博</div>
-          </div>
-          
-          <!-- 回收站 -->
-          <div class="desktop-icon" id="desktop-icon-trash" data-app="trash">
-            <div class="desktop-icon-img">🗑️</div>
-            <div class="desktop-icon-text">回收站</div>
+          <div class="sys-tray">
+            <i class="ri-wifi-fill"></i><i class="ri-volume-up-fill"></i><i class="ri-battery-fill"></i>
+            <div class="time-date"><span id="ds-time">${timeStr}</span><span id="ds-date">${dateStr}</span></div>
+            <button class="close-ds" id="btn-close-ds">关闭电脑</button>
           </div>
         </div>
-        
-        <!-- 窗口容器 -->
-        <div id="windows-container"></div>
-        
-        <!-- Windows任务栏 -->
-        <div class="windows-taskbar">
-          <div class="taskbar-left">
-            <button class="start-btn" id="btn-start">🪟</button>
-            <div class="taskbar-apps" id="taskbar-apps"></div>
+
+        <!-- WeChat -->
+        <div class="win" id="wc-win">
+          <div class="tbar-win" id="wc-tbar">
+            <div class="tbar-info"><i class="ri-wechat-fill" style="color:#07C160"></i> 微信</div>
+            <div class="win-ctrls"><div class="ctrl-btn" data-win="wc-win"><i class="ri-subtract-line"></i></div><div class="ctrl-btn close" data-win="wc-win"><i class="ri-close-line"></i></div></div>
           </div>
-          <div class="taskbar-right">
-            <div class="system-tray">
-              <span>🔊</span>
-              <span>📶</span>
+          <div class="wc-body">
+            <div class="wc-side">
+              <img src="portraits/happy.png" style="width:40px;height:40px;border-radius:8px;object-fit:cover;border:2px solid #fff">
+              <i class="ri-chat-3-line active"></i><i class="ri-contacts-line"></i><i class="ri-compass-3-line"></i>
+              <div style="flex:1"></div><i class="ri-settings-3-line"></i>
             </div>
-            <div class="datetime">
-              <div class="time">${timeStr}</div>
-              <div class="date">${now.getMonth() + 1}/${now.getDate()}</div>
+            <div class="wc-list">
+              <div class="wc-search"><input type="text" placeholder="搜索"></div>
+              <div class="wc-contacts" id="ds-contacts"></div>
             </div>
-            <button class="close-desktop-btn" id="btn-close-desktop" title="关闭电脑">✕</button>
+            <div class="wc-chat">
+              <div class="wc-chat-hdr" id="ds-chat-hdr"><span class="hdr-name">选择联系人</span><div></div></div>
+              <div class="wc-msgs" id="ds-msgs"></div>
+              <div class="wc-input-area">
+                <div class="wc-toolbar"><i class="ri-emotion-line"></i><i class="ri-folder-2-line"></i><i class="ri-scissors-cut-line"></i><i class="ri-chat-history-line"></i></div>
+                <textarea class="wc-inp" id="ds-wc-input" placeholder="输入消息..."></textarea>
+                <div class="wc-acts"><button class="wc-send" id="ds-wc-send">发送(S)</button></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Weibo -->
+        <div class="win" id="wb-win">
+          <div class="tbar-win" id="wb-tbar">
+            <div class="tbar-info"><i class="ri-weibo-fill" style="color:#E6162D"></i> 微博</div>
+            <div class="win-ctrls"><div class="ctrl-btn" data-win="wb-win"><i class="ri-subtract-line"></i></div><div class="ctrl-btn close" data-win="wb-win"><i class="ri-close-line"></i></div></div>
+          </div>
+          <div class="wb-body">
+            <div class="wb-hdr">
+              <div class="wb-logo"><i class="ri-weibo-fill"></i> 微博</div>
+              <div class="wb-search"><i class="ri-search-line" style="color:#999"></i><input type="text" placeholder="搜索"></div>
+              <div class="wb-usr-acts"><button class="btn-pub" id="ds-btn-pub"><i class="ri-quill-pen-line"></i> 发布</button></div>
+            </div>
+            <div class="wb-main" id="ds-wb-main">
+              <div class="wb-sidebar">
+                <div class="wb-usr-card">
+                  <img src="portraits/happy.png" class="avatar" style="border-radius:50%;object-fit:cover;border:2px solid #fff">
+                  <div style="font-weight:bold;margin-bottom:5px">小爱</div>
+                  <div style="font-size:12px;color:#999">粉丝 ${state.followers || 0}</div>
+                </div>
+                <div class="wb-nav">
+                  <div class="wb-nav-item active" id="ds-nav-home"><i class="ri-home-5-line"></i> 首页</div>
+                  <div class="wb-nav-item"><i class="ri-fire-line"></i> 热门</div>
+                  <div class="wb-nav-item"><i class="ri-message-3-line"></i> 消息</div>
+                </div>
+              </div>
+              <div class="wb-feed" id="ds-wb-feed"></div>
+              <div class="wb-right">
+                <div class="hot-card">
+                  <div class="card-title"><i class="ri-fire-fill" style="color:#f5222d"></i> 微博热搜</div>
+                  <div class="hot-list" id="ds-hot-list"></div>
+                </div>
+              </div>
+            </div>
+            <div class="hot-detail" id="ds-hot-detail">
+              <div class="hot-detail-hdr"><i class="ri-arrow-left-line btn-back" id="ds-hot-back"></i><div class="hot-detail-title" id="ds-hot-title"></div></div>
+              <div class="hot-detail-feed" id="ds-hot-feed"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Publish Modal -->
+        <div class="pub-modal" id="ds-pub-modal">
+          <div class="pub-modal-box">
+            <div class="pub-modal-hdr">发布微博 <i class="ri-close-line pub-modal-close" id="ds-close-pub"></i></div>
+            <div class="pub-modal-body"><textarea class="pub-ta" id="ds-pub-input" placeholder="有什么新鲜事想分享？"></textarea></div>
+            <div class="pub-modal-ft">
+              <div class="pub-tools"><i class="ri-emotion-line"></i><i class="ri-image-line"></i><i class="ri-hashtag"></i></div>
+              <div style="display:flex;align-items:center"><span class="char-count" id="ds-pub-count">0/140</span><button class="btn-do-pub" id="ds-do-pub">发布</button></div>
+            </div>
           </div>
         </div>
       </div>
@@ -4035,542 +4241,299 @@ export class Game {
 
     this.showOverlay(html);
     this.openApps.clear();
+    const ov = document.getElementById('double-life-overlay');
+    if (!ov) return;
 
-    // 绑定桌面图标双击事件
-    document.querySelectorAll('.desktop-icon').forEach(icon => {
-      icon.addEventListener('dblclick', (e) => {
-        const app = (e.currentTarget as HTMLElement).dataset.app;
-        if (app === 'wechat') this.openWindow('wechat', '微信', this.renderWechatContent());
-        if (app === 'weibo') this.openWindow('weibo', '微博', this.renderWeiboContent());
-        if (app === 'trash') this.openWindow('trash', '回收站', '<div style="padding: 20px;">回收站是空的</div>');
-      });
-    });
+    // --- Window toggle ---
+    let zIdx = 1000;
+    const toggleWin = (winId: string, taskId: string) => {
+      const win = ov.querySelector(`#${winId}`) as HTMLElement;
+      const task = ov.querySelector(`#${taskId}`) as HTMLElement;
+      if (!win) return;
+      if (win.style.display === 'flex') { win.style.display = 'none'; task?.classList.remove('active'); }
+      else { win.style.display = 'flex'; win.style.zIndex = ++zIdx + ''; task?.classList.add('active'); }
+    };
+    ov.querySelector('#ds-icon-wc')?.addEventListener('click', () => toggleWin('wc-win', 'ds-task-wc'));
+    ov.querySelector('#ds-icon-wb')?.addEventListener('click', () => toggleWin('wb-win', 'ds-task-wb'));
+    ov.querySelector('#ds-task-wc')?.addEventListener('click', () => toggleWin('wc-win', 'ds-task-wc'));
+    ov.querySelector('#ds-task-wb')?.addEventListener('click', () => toggleWin('wb-win', 'ds-task-wb'));
 
-    // 绑定关闭桌面按钮
-    document.getElementById('btn-close-desktop')?.addEventListener('click', () => {
-      this.hideOverlay();
-      this.openApps.clear();
-    });
-  }
-
-  /**
-   * 打开窗口
-   */
-  private openWindow(id: string, title: string, content: string): void {
-    if (this.openApps.has(id)) {
-      // 窗口已存在，聚焦到最前
-      const existingWindow = document.getElementById(`window-${id}`);
-      if (existingWindow) {
-        this.focusWindow(existingWindow);
-      }
-      return;
-    }
-
-    this.openApps.add(id);
-    const container = document.getElementById('windows-container');
-    if (!container) return;
-
-    // 随机位置，避免重叠
-    const randomX = 50 + Math.random() * 100;
-    const randomY = 30 + Math.random() * 50;
-
-    const windowHtml = `
-      <div class="app-window" id="window-${id}" style="left: ${randomX}px; top: ${randomY}px;">
-        <div class="window-titlebar" data-window-id="${id}">
-          <div class="window-title">${title}</div>
-          <div class="window-controls">
-            <button class="win-btn minimize" data-action="minimize">−</button>
-            <button class="win-btn maximize" data-action="maximize">□</button>
-            <button class="win-btn close" data-action="close">×</button>
-          </div>
-        </div>
-        <div class="window-body">
-          ${content}
-        </div>
-      </div>
-    `;
-
-    container.insertAdjacentHTML('beforeend', windowHtml);
-    this.updateTaskbar();
-    this.bindWindowEvents(id);
-  }
-
-  /**
-   * 绑定窗口事件
-   */
-  private bindWindowEvents(windowId: string): void {
-    const windowEl = document.getElementById(`window-${windowId}`);
-    if (!windowEl) return;
-
-    // 关闭按钮
-    windowEl.querySelector('[data-action="close"]')?.addEventListener('click', () => {
-      this.closeWindow(windowId);
-    });
-
-    // 最小化按钮
-    windowEl.querySelector('[data-action="minimize"]')?.addEventListener('click', () => {
-      windowEl.style.display = 'none';
-      this.updateTaskbar();
-    });
-
-    // 最大化按钮
-    let isMaximized = false;
-    windowEl.querySelector('[data-action="maximize"]')?.addEventListener('click', () => {
-      if (isMaximized) {
-        windowEl.style.width = '900px';
-        windowEl.style.height = '600px';
-        windowEl.style.left = '50px';
-        windowEl.style.top = '50px';
-        windowEl.style.transform = 'none';
-      } else {
-        windowEl.style.width = '100%';
-        windowEl.style.height = 'calc(100% - 48px)';
-        windowEl.style.left = '0';
-        windowEl.style.top = '0';
-        windowEl.style.transform = 'none';
-      }
-      isMaximized = !isMaximized;
-    });
-
-    // 拖拽功能
-    const titlebar = windowEl.querySelector('.window-titlebar');
-    if (titlebar) {
-      let isDragging = false;
-      let startX = 0, startY = 0;
-      let initialX = 0, initialY = 0;
-
-      titlebar.addEventListener('mousedown', (e: Event) => {
-        const mouseEvent = e as MouseEvent;
-        if ((mouseEvent.target as HTMLElement).closest('.window-controls')) return;
-        isDragging = true;
-        startX = mouseEvent.clientX;
-        startY = mouseEvent.clientY;
-        const rect = windowEl.getBoundingClientRect();
-        initialX = rect.left;
-        initialY = rect.top;
-        this.focusWindow(windowEl);
-      });
-
-      document.addEventListener('mousemove', (e: Event) => {
-        const mouseEvent = e as MouseEvent;
-        if (!isDragging) return;
-        const dx = mouseEvent.clientX - startX;
-        const dy = mouseEvent.clientY - startY;
-        windowEl.style.left = `${initialX + dx}px`;
-        windowEl.style.top = `${initialY + dy}px`;
-        windowEl.style.transform = 'none';
-      });
-
-      document.addEventListener('mouseup', () => {
-        isDragging = false;
-      });
-    }
-
-    // 点击窗口聚焦
-    windowEl.addEventListener('mousedown', () => {
-      this.focusWindow(windowEl);
-    });
-
-    // 绑定APP特定事件
-    if (windowId === 'wechat') {
-      this.bindWechatEvents(windowEl);
-    } else if (windowId === 'weibo') {
-      this.bindWeiboEvents(windowEl);
-    }
-  }
-
-  /**
-   * 绑定微信APP事件
-   */
-  private bindWechatEvents(windowEl: HTMLElement): void {
-    // 联系人点击
-    windowEl.querySelectorAll('.wechat-contact').forEach(contact => {
-      contact.addEventListener('click', (e) => {
-        const npcId = (e.currentTarget as HTMLElement).dataset.npc;
-        if (!npcId) return;
-        this.openWechatChat(npcId, windowEl);
-        // 高亮选中的联系人
-        windowEl.querySelectorAll('.wechat-contact').forEach(c => c.classList.remove('active'));
-        (e.currentTarget as HTMLElement).classList.add('active');
-      });
-    });
-  }
-
-  /**
-   * 绑定微博APP事件
-   */
-  private bindWeiboEvents(windowEl: HTMLElement): void {
-    // Tab切换
-    windowEl.querySelectorAll('.weibo-tab').forEach(tab => {
-      tab.addEventListener('click', (e) => {
-        const targetTab = (e.currentTarget as HTMLElement).dataset.tab;
-        if (!targetTab) return;
-        
-        // 切换tab激活状态
-        windowEl.querySelectorAll('.weibo-tab').forEach(t => t.classList.remove('active'));
-        (e.currentTarget as HTMLElement).classList.add('active');
-        
-        // 切换面板
-        windowEl.querySelectorAll('.weibo-tab-panel').forEach(p => {
-          (p as HTMLElement).style.display = 'none';
-        });
-        const targetPanel = windowEl.querySelector(`#tab-${targetTab}`);
-        if (targetPanel) {
-          (targetPanel as HTMLElement).style.display = 'block';
-        }
-      });
-    });
-
-    // 发布按钮
-    windowEl.querySelector('#btn-post-weibo')?.addEventListener('click', () => {
-      this.openWeiboPostModal();
-    });
-  }
-
-  /**
-   * 聚焦窗口到最前
-   */
-  private focusWindow(windowEl: HTMLElement): void {
-    document.querySelectorAll('.app-window').forEach(w => {
-      (w as HTMLElement).style.zIndex = '100';
-    });
-    windowEl.style.zIndex = '200';
-  }
-
-  /**
-   * 关闭窗口
-   */
-  private closeWindow(windowId: string): void {
-    const windowEl = document.getElementById(`window-${windowId}`);
-    if (windowEl) {
-      windowEl.remove();
-      this.openApps.delete(windowId);
-      this.updateTaskbar();
-    }
-  }
-
-  /**
-   * 更新任务栏
-   */
-  private updateTaskbar(): void {
-    const taskbarApps = document.getElementById('taskbar-apps');
-    if (!taskbarApps) return;
-
-    taskbarApps.innerHTML = Array.from(this.openApps).map(appId => {
-      const windowEl = document.getElementById(`window-${appId}`);
-      const isVisible = windowEl && windowEl.style.display !== 'none';
-      const icons: Record<string, string> = { wechat: '💬', weibo: '📱', trash: '🗑️' };
-      return `
-        <button class="taskbar-app-btn ${isVisible ? 'active' : ''}" data-app="${appId}">
-          ${icons[appId] || '📄'}
-        </button>
-      `;
-    }).join('');
-
-    // 绑定任务栏按钮点击
-    taskbarApps.querySelectorAll('.taskbar-app-btn').forEach(btn => {
+    // Close/minimize
+    ov.querySelectorAll('.ctrl-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
-        const appId = (e.currentTarget as HTMLElement).dataset.app;
-        if (!appId) return;
-        const windowEl = document.getElementById(`window-${appId}`);
-        if (windowEl) {
-          if (windowEl.style.display === 'none') {
-            windowEl.style.display = 'flex';
-            this.focusWindow(windowEl);
-          } else if (windowEl.style.zIndex === '200') {
-            windowEl.style.display = 'none';
-          } else {
-            this.focusWindow(windowEl);
+        const winId = (e.currentTarget as HTMLElement).dataset.win;
+        const win = ov.querySelector(`#${winId}`) as HTMLElement;
+        if (win) { win.style.display = 'none'; }
+        const taskId = winId === 'wc-win' ? 'ds-task-wc' : 'ds-task-wb';
+        ov.querySelector(`#${taskId}`)?.classList.remove('active');
+      });
+    });
+
+    // Draggable
+    const makeDraggable = (winId: string, handleId: string) => {
+      const win = ov.querySelector(`#${winId}`) as HTMLElement;
+      const handle = ov.querySelector(`#${handleId}`) as HTMLElement;
+      if (!win || !handle) return;
+      let dragging = false, sx = 0, sy = 0, sl = 0, st = 0;
+      handle.addEventListener('mousedown', (e) => {
+        if ((e.target as HTMLElement).closest('.win-ctrls')) return;
+        dragging = true; sx = (e as MouseEvent).clientX; sy = (e as MouseEvent).clientY;
+        const r = win.getBoundingClientRect(); sl = r.left; st = r.top;
+        win.style.zIndex = ++zIdx + '';
+      });
+      document.addEventListener('mousemove', (e) => {
+        if (!dragging) return;
+        win.style.left = Math.max(0, sl + e.clientX - sx) + 'px';
+        win.style.top = Math.max(0, st + e.clientY - sy) + 'px';
+      });
+      document.addEventListener('mouseup', () => { dragging = false; });
+      win.addEventListener('mousedown', () => { win.style.zIndex = ++zIdx + ''; });
+    };
+    makeDraggable('wc-win', 'wc-tbar');
+    makeDraggable('wb-win', 'wb-tbar');
+
+    // Close desktop
+    ov.querySelector('#btn-close-ds')?.addEventListener('click', () => { this.hideOverlay(); this.openApps.clear(); });
+
+    // --- WeChat ---
+    let activeChat = npcKeys[0];
+    const chatHist: Record<string, {type: string; content: string}[]> = {};
+    npcKeys.forEach(k => { chatHist[k] = []; });
+
+    const getNpc = (id: string) => npcList.find(n => n.id === id);
+    const getNpcInitialMsg = (id: string) => {
+      const msgs: Record<string, string[]> = {
+        landlady: ['小姑娘，房租是每月3000，按天算就是每天100。别忘了按时交租，不然...你懂的。'],
+        kexin: ['嗨！我是可心，刚搬来隔壁。听说你也是主播？以后多多关照啦！'],
+        mom: ['小爱，最近过得怎么样？不要太累了，注意身体。'],
+        yueya: ['你好，我是月牙儿。听说你最近刚开始直播？加油吧，新人~'],
+        doudou: ['汪汪！（摇尾巴）'],
+      };
+      if (id === 'landlady' && survival.rentDue > 0) return [`你已经拖欠房租${survival.rentDue}天了，请尽快缴纳！`];
+      return msgs[id] || ['...'];
+    };
+
+    const renderContacts = () => {
+      const list = ov.querySelector('#ds-contacts') as HTMLElement;
+      if (!list) return;
+      list.innerHTML = npcList.map(npc => {
+        const hist = chatHist[npc.id];
+        const lastMsg = hist.length > 0 ? hist[hist.length - 1].content : npc.lastMsg;
+        return `<div class="wc-ct ${npc.id === activeChat ? 'active' : ''}" data-npc="${npc.id}">
+          <div class="wc-avatar" style="background:${npc.color}">${npc.name[0]}</div>
+          <div class="wc-ct-info"><div class="wc-ct-name">${npc.name}</div><div class="wc-ct-msg">${lastMsg}</div></div>
+        </div>`;
+      }).join('');
+      list.querySelectorAll('.wc-ct').forEach(ct => {
+        ct.addEventListener('click', () => {
+          activeChat = (ct as HTMLElement).dataset.npc || npcKeys[0];
+          renderContacts();
+          renderChat();
+        });
+      });
+    };
+
+    const renderChat = () => {
+      const npc = getNpc(activeChat);
+      if (!npc) return;
+      const hdr = ov.querySelector('#ds-chat-hdr') as HTMLElement;
+      const isLandlady = activeChat === 'landlady';
+      const canRent = isLandlady && survival.rentDue > 0 && state.income >= 100;
+      const canUtil = isLandlady && survival.utilitiesDue > 0 && state.income >= 20;
+      hdr.innerHTML = `<span class="hdr-name">${npc.name}</span>
+        ${isLandlady ? `<div class="pay-btns">
+          <button class="pay-btn pay-rent" id="ds-pay-rent" ${!canRent ? 'disabled' : ''}>交房租 ¥100</button>
+          <button class="pay-btn pay-util" id="ds-pay-util" ${!canUtil ? 'disabled' : ''}>交水电 ¥20</button>
+        </div>` : ''}`;
+
+      // Pay rent handlers
+      if (isLandlady) {
+        hdr.querySelector('#ds-pay-rent')?.addEventListener('click', () => {
+          if (state.income >= 100) {
+            this.playerData.addIncome(-100);
+            this.playerData.updateSurvival('rentDue', -1);
+            addMsg('player', '房东太太，这是房租¥100。');
+            setTimeout(() => addMsg('npc', '收到，记得按时交租哦。'), 500);
           }
-          this.updateTaskbar();
-        }
-      });
-    });
-  }
+        });
+        hdr.querySelector('#ds-pay-util')?.addEventListener('click', () => {
+          if (state.income >= 20) {
+            this.playerData.addIncome(-20);
+            this.playerData.updateSurvival('utilitiesDue', -1);
+            addMsg('player', '房东太太，这是水电费¥20。');
+            setTimeout(() => addMsg('npc', '好的，水电费已收到。'), 500);
+          }
+        });
+      }
 
-  /**
-   * 渲染微信内容
-   */
-  private renderWechatContent(): string {
-    const state = this.playerData.getState();
-    const survival = state.survival || { rentDue: 0, utilitiesDue: 0 };
-
-    const npcs = [
-      { id: 'landlady', name: '房东太太', emoji: '👵', lastMsg: survival.rentDue > 0 ? `已拖欠${survival.rentDue}天房租` : '房租记得交哦', time: '12:30' },
-      { id: 'kexin', name: '可心', emoji: '👩', lastMsg: '在吗？', time: '昨天' },
-      { id: 'mom', name: '妈妈', emoji: '👩‍🦳', lastMsg: '注意身体', time: '昨天' },
-    ];
-
-    if (state.npcRelations?.doudou > 0) {
-      npcs.push({ id: 'doudou', name: '豆豆', emoji: '🐕', lastMsg: '汪汪！', time: '10:00' });
-    }
-
-    return `
-      <div class="wechat-container">
-        <div class="wechat-sidebar">
-          <div class="wechat-search-box">
-            <input type="text" class="wechat-search-input" placeholder="搜索">
-          </div>
-          <div class="wechat-contact-list">
-            ${npcs.map(npc => `
-              <div class="wechat-contact" data-npc="${npc.id}">
-                <div class="contact-avatar">${npc.emoji}</div>
-                <div class="contact-info">
-                  <div class="contact-name">${npc.name}</div>
-                  <div class="contact-msg">${npc.lastMsg}</div>
-                </div>
-                <div class="contact-time">${npc.time}</div>
-              </div>
-            `).join('')}
-          </div>
-        </div>
-        <div class="wechat-chat-area" id="wechat-chat-area">
-          <div class="chat-placeholder">选择一个联系人开始聊天</div>
-        </div>
-      </div>
-    `;
-  }
-
-  /**
-   * 渲染微博内容
-   */
-  private renderWeiboContent(): string {
-    const hotSearches = this.hotSearchSystem.getCurrentHotSearches(10);
-
-    return `
-      <div class="weibo-container">
-        <div class="weibo-tabs">
-          <button class="weibo-tab active" data-tab="home">首页</button>
-          <button class="weibo-tab" data-tab="hot">热搜</button>
-        </div>
-        <div class="weibo-content">
-          <div class="weibo-tab-panel active" id="tab-home">
-            <div class="weibo-posts">
-              <div class="weibo-post-card">
-                <div class="post-header">
-                  <span class="post-avatar">👩</span>
-                  <span class="post-name">林小爱</span>
-                  <span class="post-time">2小时前</span>
-                </div>
-                <div class="post-content">今天直播很开心！感谢大家的支持～ #直播日常</div>
-                <div class="post-actions">
-                  <span>♥ 128</span>
-                  <span>💬 32</span>
-                  <span>↗ 8</span>
-                </div>
-              </div>
-            </div>
-            <button class="weibo-fab" id="btn-post-weibo">+</button>
-          </div>
-          <div class="weibo-tab-panel" id="tab-hot" style="display: none;">
-            <div class="hotsearch-list">
-              ${hotSearches.map((hot, i) => `
-                <div class="hotsearch-item">
-                  <span class="hot-rank ${i < 3 ? 'top' + (i + 1) : ''}">${i + 1}</span>
-                  <span class="hot-keyword">${hot.keyword}</span>
-                  <span class="hot-heat">${(hot.heat / 10000).toFixed(1)}万</span>
-                </div>
-              `).join('')}
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
-  }
-
-  /**
-   * 打开微信聊天窗口
-   */
-  private openWechatChat(npcId: string, windowEl?: HTMLElement): void {
-    const parent = windowEl || document.getElementById('window-wechat');
-    if (!parent) return;
-    const chatWindow = parent.querySelector('#wechat-chat-area');
-    if (!chatWindow) return;
-
-    const npcData: Record<string, { name: string; emoji: string }> = {
-      landlady: { name: '房东太太', emoji: '👵' },
-      kexin: { name: '可心', emoji: '👩' },
-      mom: { name: '妈妈', emoji: '👩‍🦳' },
-      doudou: { name: '豆豆', emoji: '🐕' },
+      const msgs = ov.querySelector('#ds-msgs') as HTMLElement;
+      msgs.innerHTML = '';
+      if (chatHist[activeChat].length === 0) {
+        const initial = getNpcInitialMsg(activeChat);
+        initial.forEach(m => addMsgToDom('npc', m, npc));
+      } else {
+        chatHist[activeChat].forEach(m => {
+          const n = m.type === 'npc' ? npc : null;
+          addMsgToDom(m.type, m.content, n);
+        });
+      }
+      msgs.scrollTop = msgs.scrollHeight;
     };
 
-    const npc = npcData[npcId];
-    if (!npc) return;
+    const addMsgToDom = (type: string, content: string, npc?: { name: string; color: string } | null) => {
+      const msgs = ov.querySelector('#ds-msgs');
+      if (!msgs) return;
+      const div = document.createElement('div');
+      div.className = `msg ${type}`;
+      const avatarHtml = type === 'npc'
+        ? `<div class="wc-avatar" style="background:${npc?.color || '#999'};width:36px;height:36px;flex-shrink:0">${(npc?.name || '?')[0]}</div>`
+        : `<img src="portraits/happy.png" style="width:36px;height:36px;border-radius:8px;object-fit:cover;flex-shrink:0">`;
+      div.innerHTML = `${type === 'npc' ? avatarHtml : ''}<div class="msg-bubble">${content}</div>${type === 'player' ? avatarHtml : ''}`;
+      msgs.appendChild(div);
+      msgs.scrollTop = msgs.scrollHeight;
+    };
 
-    const state = this.playerData.getState();
-    const survival = state.survival || { rentDue: 0, utilitiesDue: 0 };
+    const addMsg = (type: string, content: string) => {
+      chatHist[activeChat].push({ type, content });
+      const npc = type === 'npc' ? getNpc(activeChat) : null;
+      addMsgToDom(type, content, npc);
+      renderContacts();
+    };
 
-    // 生成历史消息
-    const messages: { type: 'self' | 'other'; content: string }[] = [];
-    
-    if (npcId === 'landlady') {
-      messages.push({ type: 'other', content: '小姑娘，房租是每月3000，按天算就是每天100。别忘了按时交租，不然...你懂的。' });
-      if (survival.rentDue > 0) {
-        messages.push({ type: 'other', content: `你已经拖欠房租${survival.rentDue}天了，请尽快缴纳！` });
-      }
-    } else if (npcId === 'kexin') {
-      messages.push({ type: 'other', content: '嗨！我是可心，刚搬来隔壁。听说你也是主播？以后多多关照啦！' });
-    } else if (npcId === 'mom') {
-      messages.push({ type: 'other', content: '小爱，最近过得怎么样？不要太累了，注意身体。' });
-    } else if (npcId === 'doudou') {
-      messages.push({ type: 'other', content: '汪汪！（摇尾巴）' });
-    }
-
-    const isLandlady = npcId === 'landlady';
-    const canPayRent = isLandlady && survival.rentDue > 0 && state.income >= 100;
-    const canPayUtilities = isLandlady && survival.utilitiesDue > 0 && state.income >= 20;
-
-    chatWindow.innerHTML = `
-      <div style="display: flex; flex-direction: column; height: 100%; background: #f5f5f5;">
-        <div style="padding: 12px 16px; border-bottom: 1px solid #e0e0e0; background: white; display: flex; align-items: center; justify-content: space-between;">
-          <div style="font-size: 14px; font-weight: 500; color: #333;">${npc.name}</div>
-          ${isLandlady ? `
-          <div style="display: flex; gap: 8px;">
-            <button class="btn-pay-rent" style="padding: 4px 12px; background: #07c160; color: white; border: none; border-radius: 4px; font-size: 12px; cursor: pointer; ${!canPayRent ? 'opacity:0.5;' : ''}">交房租 ¥100</button>
-            <button class="btn-pay-utilities" style="padding: 4px 12px; background: #409eff; color: white; border: none; border-radius: 4px; font-size: 12px; cursor: pointer; ${!canPayUtilities ? 'opacity:0.5;' : ''}">交水电 ¥20</button>
-          </div>
-          ` : ''}
-        </div>
-        <div class="wechat-msg-container" style="flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px;">
-          ${messages.map(msg => `
-            <div style="display: flex; ${msg.type === 'self' ? 'justify-content: flex-end;' : 'justify-content: flex-start;'}">
-              ${msg.type === 'other' ? `<div style="width: 36px; height: 36px; border-radius: 4px; background: #f0f0f0; display: flex; align-items: center; justify-content: center; font-size: 20px; margin-right: 8px;">${npc.emoji}</div>` : ''}
-              <div style="padding: 8px 12px; border-radius: 4px; max-width: 70%; font-size: 14px; line-height: 1.5; ${msg.type === 'self' ? 'background: #95ec69;' : 'background: white;'}">${msg.content}</div>
-              ${msg.type === 'self' ? `<div style="width: 36px; height: 36px; border-radius: 4px; background: #f0f0f0; display: flex; align-items: center; justify-content: center; font-size: 20px; margin-left: 8px;">👩</div>` : ''}
-            </div>
-          `).join('')}
-        </div>
-        <div style="padding: 12px 16px; border-top: 1px solid #e0e0e0; background: white; display: flex; gap: 8px;">
-          <input class="wechat-msg-input" type="text" placeholder="输入消息..." style="flex: 1; padding: 8px 12px; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 14px; outline: none;">
-          <button class="wechat-msg-send" style="padding: 8px 16px; background: #07c160; color: white; border: none; border-radius: 4px; font-size: 14px; cursor: pointer;">发送</button>
-        </div>
-      </div>
-    `;
-
-    // 绑定交房租按钮
-    if (isLandlady) {
-      chatWindow.querySelector('.btn-pay-rent')?.addEventListener('click', () => {
-        if (state.income >= 100) {
-          this.playerData.addIncome(-100);
-          this.playerData.updateSurvival('rentDue', -1);
-          this.addWechatMessage('self', '房东太太，这是房租¥100。', chatWindow);
-          setTimeout(() => {
-            this.addWechatMessage('other', '收到，记得按时交租哦。', chatWindow, npc.emoji);
-          }, 500);
-        }
-      });
-
-      chatWindow.querySelector('.btn-pay-utilities')?.addEventListener('click', () => {
-        if (state.income >= 20) {
-          this.playerData.addIncome(-20);
-          this.playerData.updateSurvival('utilitiesDue', -1);
-          this.addWechatMessage('self', '房东太太，这是水电费¥20。', chatWindow);
-          setTimeout(() => {
-            this.addWechatMessage('other', '好的，水电费已收到。', chatWindow, npc.emoji);
-          }, 500);
-        }
-      });
-    }
-
-    // 绑定发送消息
-    const input = chatWindow.querySelector('.wechat-msg-input') as HTMLInputElement;
-    const sendBtn = chatWindow.querySelector('.wechat-msg-send');
-    
-    const sendMessage = () => {
-      const content = input.value.trim();
-      if (!content) return;
-      this.addWechatMessage('self', content, chatWindow);
+    const sendWcMsg = () => {
+      const input = ov.querySelector('#ds-wc-input') as HTMLTextAreaElement;
+      const text = input.value.trim();
+      if (!text) return;
+      addMsg('player', text);
       input.value = '';
-
-      // NPC回复
       setTimeout(() => {
-        const replies: Record<string, string[]> = {
-          landlady: ['好的', '知道了', '记得按时交租', '年轻人要努力啊'],
-          kexin: ['哈哈', '真的吗', '我也觉得', '一起加油！'],
-          mom: ['照顾好自己', '妈妈想你', '注意身体', '有空回家看看'],
-          doudou: ['汪汪！', '（摇尾巴）', '（舔手）', '（蹭）'],
-        };
-        const reply = replies[npcId][Math.floor(Math.random() * replies[npcId].length)];
-        this.addWechatMessage('other', reply, chatWindow, npc.emoji);
-      }, 1000);
+        const npc = getNpc(activeChat);
+        if (!npc) return;
+        const reply = npc.msgs[Math.floor(Math.random() * npc.msgs.length)];
+        addMsg('npc', reply);
+      }, 800 + Math.random() * 800);
+    };
+    ov.querySelector('#ds-wc-send')?.addEventListener('click', sendWcMsg);
+    ov.querySelector('#ds-wc-input')?.addEventListener('keypress', (e) => { if ((e as KeyboardEvent).key === 'Enter' && !(e as KeyboardEvent).shiftKey) { e.preventDefault(); sendWcMsg(); } });
+
+    renderContacts();
+    renderChat();
+
+    // --- Weibo ---
+    const renderWbPosts = (containerId: string, posts = weiboPosts) => {
+      const container = ov.querySelector(`#${containerId}`) as HTMLElement;
+      if (!container) return;
+      container.innerHTML = posts.map(post => `
+        <div class="wb-post" data-pid="${post.id}">
+          <div class="wb-post-hdr">
+            <div class="wb-post-avatar" style="background:${post.color}">${post.author[0]}</div>
+            <div class="wb-post-info"><div class="wb-post-name">${post.author}</div><div class="wb-post-time">${post.time}</div></div>
+          </div>
+          <div class="wb-post-content">${post.content}</div>
+          <div class="wb-post-acts">
+            <div class="wb-act ds-act-share" data-pid="${post.id}"><i class="ri-share-forward-line"></i> <span>${post.shares}</span></div>
+            <div class="wb-act ds-act-comment" data-pid="${post.id}"><i class="ri-chat-1-line"></i> <span>${post.comments.length}</span></div>
+            <div class="wb-act ds-act-like" data-pid="${post.id}"><i class="ri-heart-3-line"></i> <span>${post.likes}</span></div>
+          </div>
+          <div class="wb-comments" id="ds-cmts-${post.id}">
+            ${post.comments.map(c => `<div class="cmt-item"><div><span class="cmt-name">${c.name}:</span>${c.content}</div></div>`).join('')}
+            <div class="cmt-input-area"><input type="text" placeholder="发表评论..." class="ds-cmt-input" data-pid="${post.id}"><button class="ds-cmt-send" data-pid="${post.id}">发送</button></div>
+          </div>
+        </div>`).join('');
+
+      // Like/share/comment
+      container.querySelectorAll('.ds-act-like').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const pid = parseInt((btn as HTMLElement).dataset.pid || '0');
+          const post = weiboPosts.find(p => p.id === pid);
+          if (!post) return;
+          const isLiked = btn.classList.contains('liked');
+          if (isLiked) { btn.classList.remove('liked'); post.likes--; (btn.querySelector('i') as HTMLElement).className = 'ri-heart-3-line'; }
+          else { btn.classList.add('liked'); post.likes++; (btn.querySelector('i') as HTMLElement).className = 'ri-heart-3-fill'; }
+          btn.querySelector('span')!.textContent = post.likes + '';
+        });
+      });
+      container.querySelectorAll('.ds-act-share').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const pid = parseInt((btn as HTMLElement).dataset.pid || '0');
+          const post = weiboPosts.find(p => p.id === pid);
+          if (post) { post.shares++; btn.querySelector('span')!.textContent = post.shares + ''; }
+        });
+      });
+      container.querySelectorAll('.ds-act-comment').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const pid = (btn as HTMLElement).dataset.pid;
+          const cmtArea = ov.querySelector(`#ds-cmts-${pid}`) as HTMLElement;
+          if (cmtArea) cmtArea.classList.toggle('active');
+        });
+      });
+      container.querySelectorAll('.ds-cmt-send').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const pid = parseInt((btn as HTMLElement).dataset.pid || '0');
+          const input = ov.querySelector(`.ds-cmt-input[data-pid="${pid}"]`) as HTMLInputElement;
+          const text = input.value.trim();
+          if (!text) return;
+          const post = weiboPosts.find(p => p.id === pid);
+          if (post) { post.comments.push({ name: '小爱', content: text }); renderWbPosts(containerId, posts); ov.querySelector(`#ds-cmts-${pid}`)?.classList.add('active'); }
+        });
+      });
     };
 
-    sendBtn?.addEventListener('click', sendMessage);
-    input?.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') sendMessage();
+    const renderHotList = () => {
+      const list = ov.querySelector('#ds-hot-list') as HTMLElement;
+      if (!list) return;
+      list.innerHTML = hotSearches.map((h, i) => `
+        <div class="hot-item" data-idx="${i}"><div class="hot-num">${i + 1}</div><div class="hot-title">${h.keyword}</div><div class="hot-heat">${(h.heat / 10000).toFixed(1)}万</div></div>
+      `).join('');
+      list.querySelectorAll('.hot-item').forEach(item => {
+        item.addEventListener('click', () => {
+          const idx = parseInt((item as HTMLElement).dataset.idx || '0');
+          const hot = hotSearches[idx];
+          if (!hot) return;
+          (ov.querySelector('#ds-wb-main') as HTMLElement).style.display = 'none';
+          (ov.querySelector('#ds-hot-detail') as HTMLElement).style.display = 'flex';
+          (ov.querySelector('#ds-hot-title') as HTMLElement).textContent = hot.keyword;
+          renderWbPosts('ds-hot-feed', weiboPosts.slice(0, 2));
+        });
+      });
+    };
+
+    // Hot search back
+    ov.querySelector('#ds-hot-back')?.addEventListener('click', () => {
+      (ov.querySelector('#ds-wb-main') as HTMLElement).style.display = 'flex';
+      (ov.querySelector('#ds-hot-detail') as HTMLElement).style.display = 'none';
+      renderWbPosts('ds-wb-feed');
     });
-  }
+    ov.querySelector('#ds-nav-home')?.addEventListener('click', () => {
+      (ov.querySelector('#ds-wb-main') as HTMLElement).style.display = 'flex';
+      (ov.querySelector('#ds-hot-detail') as HTMLElement).style.display = 'none';
+      renderWbPosts('ds-wb-feed');
+    });
 
-  /**
-   * 添加微信消息
-   */
-  private addWechatMessage(type: 'self' | 'other', content: string, container?: Element, emoji?: string): void {
-    const messagesContainer = container?.querySelector('.wechat-msg-container') || document.querySelector('.wechat-msg-container');
-    if (!messagesContainer) return;
-
-    const npcEmoji = emoji || '👤';
-    const html = `
-      <div class="wechat-message ${type}">
-        <div class="wechat-avatar">${type === 'self' ? '👩' : npcEmoji}</div>
-        <div class="wechat-message-content">${content}</div>
-      </div>
-    `;
-
-    messagesContainer.insertAdjacentHTML('beforeend', html);
-    messagesContainer.scrollTop = messagesContainer.scrollHeight;
-  }
-
-  /**
-   * 打开微博发布弹窗
-   */
-  private openWeiboPostModal(): void {
-    const modal = document.createElement('div');
-    modal.className = 'weibo-post-modal';
-    modal.id = 'weibo-post-modal';
-    modal.innerHTML = `
-      <div class="weibo-post-modal-content">
-        <div class="weibo-post-modal-header">
-          <span class="weibo-post-modal-title">发布微博</span>
-          <button class="weibo-post-modal-close" id="btn-modal-close">×</button>
-        </div>
-        <textarea class="weibo-post-input" id="weibo-post-content" placeholder="分享新鲜事..."></textarea>
-        <div class="weibo-post-modal-actions">
-          <button class="weibo-post-modal-btn cancel" id="btn-modal-cancel">取消</button>
-          <button class="weibo-post-modal-btn confirm" id="btn-modal-confirm">发布</button>
-        </div>
-      </div>
-    `;
-
-    document.body.appendChild(modal);
-
-    // 绑定关闭事件
-    const closeModal = () => {
-      modal.remove();
-    };
-
-    document.getElementById('btn-modal-close')?.addEventListener('click', closeModal);
-    document.getElementById('btn-modal-cancel')?.addEventListener('click', closeModal);
-
-    // 绑定发布事件
-    document.getElementById('btn-modal-confirm')?.addEventListener('click', () => {
-      const content = (document.getElementById('weibo-post-content') as HTMLTextAreaElement).value.trim();
-      if (!content) return;
-
-      // 发布帖子增加粉丝
+    // Publish modal
+    const pubModal = ov.querySelector('#ds-pub-modal') as HTMLElement;
+    const pubInput = ov.querySelector('#ds-pub-input') as HTMLTextAreaElement;
+    const pubCount = ov.querySelector('#ds-pub-count') as HTMLElement;
+    ov.querySelector('#ds-btn-pub')?.addEventListener('click', () => { pubModal.style.display = 'flex'; });
+    ov.querySelector('#ds-close-pub')?.addEventListener('click', () => { pubModal.style.display = 'none'; });
+    pubInput?.addEventListener('input', () => { pubCount.textContent = `${pubInput.value.length}/140`; });
+    ov.querySelector('#ds-do-pub')?.addEventListener('click', () => {
+      const text = pubInput.value.trim();
+      if (!text) return;
+      weiboPosts.unshift({ id: Date.now(), author: '小爱', color: '#FF6B9D', time: '刚刚', content: text, likes: 0, comments: [], shares: 0 });
       this.playerData.addFollowers(Math.floor(Math.random() * 50) + 20);
-      
-      // 关闭弹窗
-      closeModal();
-      
-      // 刷新微博窗口内容
-      const weiboWindow = document.getElementById('window-weibo');
-      if (weiboWindow) {
-        const body = weiboWindow.querySelector('.window-body');
-        if (body) {
-          body.innerHTML = this.renderWeiboContent();
-          this.bindWeiboEvents(weiboWindow);
-        }
-      }
+      pubModal.style.display = 'none'; pubInput.value = ''; pubCount.textContent = '0/140';
+      renderWbPosts('ds-wb-feed');
     });
+
+    renderWbPosts('ds-wb-feed');
+    renderHotList();
+
+    // Update clock
+    setInterval(() => {
+      const n = new Date();
+      const te = ov.querySelector('#ds-time'); const de = ov.querySelector('#ds-date');
+      if (te) te.textContent = `${n.getHours().toString().padStart(2, '0')}:${n.getMinutes().toString().padStart(2, '0')}`;
+    }, 60000);
   }
 }
