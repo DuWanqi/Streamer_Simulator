@@ -4087,6 +4087,55 @@ export class Game {
       { id: 5, author: '甜橙味', color: '#F39C12', time: '3小时前', content: '小爱的弹幕氛围真的好好，不像有些直播间那么乌烟瘴气，这才是我想要的直播间🌸', likes: 67, shares: 8, comments: [{ name: '铁粉阿伟', content: '老粉认证！从一开始就这样' }, { name: '可心', content: '嘿嘿，我也有去看哦～' }] },
     ];
 
+    // WeChat Public Accounts sample data
+    const publicAccounts = [
+      {
+        id: 'xinzhiyuan',
+        name: '新智元',
+        color: '#1a1a2e',
+        articles: [
+          {
+            id: 1,
+            title: 'AI智力天花板崩了！GPT-5.5 Pro视觉智商145，撞倒门萨俱乐部门槛',
+            time: '15:01',
+            date: '2026年4月26日',
+            cover: 'https://images.unsplash.com/photo-1677442136019-21780ecad995?w=400',
+            content: '【新智元导读】1946年至今，「人类最高智商俱乐部」门萨将迎来第一位非人类成员。根据LisanBench最新跑分，GPT-5.5 Pro文本IQ 130踩上门萨会员线，视觉IQ直接飙到145，杀进天才区。一年前「LLM过不了130」还是技术圈共识，今天，这堵墙彻底被砸碎！\n\n1946年至今，「人类最高智商俱乐部」门萨将迎来第一位非人类成员。'
+          }
+        ]
+      },
+      {
+        id: 'huxiu',
+        name: '虎嗅APP',
+        color: '#E6162D',
+        articles: [
+          {
+            id: 2,
+            title: '出轨怀孕打小三：水果AI视频成功拉低全世界智商',
+            time: '3小时前',
+            date: '2026年4月26日',
+            cover: 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=400',
+            content: '近日，一系列由AI生成的"水果人"视频在社交媒体上疯传。视频中，苹果、香蕉等水果被赋予了人类的面孔和情感，演绎着各种狗血剧情。这种低质内容正在拉低全世界网民的智商底线...'
+          }
+        ]
+      },
+      {
+        id: 'touzhong',
+        name: '投中网',
+        color: '#2E5BFF',
+        articles: [
+          {
+            id: 3,
+            title: '「大家都热的时候，我一定要谨慎」',
+            time: '2分钟前',
+            date: '2026年4月26日',
+            cover: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=400',
+            content: '在投资界，有一句老话：「别人贪婪时我恐惧，别人恐惧时我贪婪。」这句话在今天这个疯狂的市场中显得尤为重要...'
+          }
+        ]
+      }
+    ];
+
     const hotSearches = this.hotSearchSystem.getCurrentHotSearches(10);
     const npcKeys = npcList.map(n => n.id);
 
@@ -4119,35 +4168,37 @@ export class Game {
         .dsim .ctrl-btn:hover{background:rgba(0,0,0,.1)}
         .dsim .ctrl-btn.close:hover{background:#ff4757;color:#fff}
 
-        /* WeChat */
-        .dsim #wc-win{width:900px;height:600px;top:80px;left:100px}
+        /* WeChat - Dark Theme */
+        .dsim #wc-win{width:900px;height:600px;top:80px;left:100px;background:rgba(30,30,30,.95);border:1px solid rgba(255,255,255,.1)}
         .dsim .wc-body{display:flex;height:calc(100% - 40px)}
-        .dsim .wc-side{width:60px;background:rgba(0,0,0,.05);display:flex;flex-direction:column;align-items:center;padding:20px 0;gap:20px;border-right:1px solid rgba(255,255,255,.4)}
+        .dsim .wc-side{width:60px;background:rgba(20,20,20,.95);display:flex;flex-direction:column;align-items:center;padding:20px 0;gap:20px;border-right:1px solid rgba(255,255,255,.1)}
         .dsim .wc-side i{font-size:24px;color:#888;cursor:pointer;transition:all .3s}
         .dsim .wc-side i:hover,.dsim .wc-side i.active{color:#07C160}
-        .dsim .wc-list{width:280px;background:rgba(255,255,255,.4);border-right:1px solid rgba(255,255,255,.4);display:flex;flex-direction:column}
-        .dsim .wc-search{padding:15px;border-bottom:1px solid rgba(255,255,255,.4)}
-        .dsim .wc-search input{width:100%;padding:8px 12px;border:none;background:rgba(255,255,255,.5);border-radius:20px;font-size:12px;outline:none}
+        .dsim .wc-list{width:280px;background:rgba(35,35,35,.95);border-right:1px solid rgba(255,255,255,.1);display:flex;flex-direction:column}
+        .dsim .wc-search{padding:15px;border-bottom:1px solid rgba(255,255,255,.1)}
+        .dsim .wc-search input{width:100%;padding:8px 12px;border:none;background:rgba(255,255,255,.1);border-radius:20px;font-size:12px;outline:none;color:#fff}
+        .dsim .wc-search input::placeholder{color:#888}
         .dsim .wc-contacts{flex:1;overflow-y:auto}
         .dsim .wc-ct{display:flex;padding:15px;gap:10px;cursor:pointer;transition:all .3s}
-        .dsim .wc-ct:hover,.dsim .wc-ct.active{background:rgba(255,255,255,.6)}
+        .dsim .wc-ct:hover,.dsim .wc-ct.active{background:rgba(255,255,255,.1)}
         .dsim .wc-avatar{width:40px;height:40px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:bold;font-size:16px;flex-shrink:0}
         .dsim .wc-ct-info{flex:1;display:flex;flex-direction:column;justify-content:center;gap:4px;min-width:0}
-        .dsim .wc-ct-name{font-size:14px;color:#333;font-weight:500}
-        .dsim .wc-ct-msg{font-size:12px;color:#666;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-        .dsim .wc-chat{flex:1;display:flex;flex-direction:column;background:rgba(245,245,245,.5)}
-        .dsim .wc-chat-hdr{height:60px;padding:0 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,.4)}
-        .dsim .wc-chat-hdr .hdr-name{font-size:18px;font-weight:bold;color:#333}
+        .dsim .wc-ct-name{font-size:14px;color:#fff;font-weight:500}
+        .dsim .wc-ct-msg{font-size:12px;color:#aaa;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .dsim .wc-chat{flex:1;display:flex;flex-direction:column;background:rgba(25,25,25,.95)}
+        .dsim .wc-chat-hdr{height:60px;padding:0 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,.1)}
+        .dsim .wc-chat-hdr .hdr-name{font-size:18px;font-weight:bold;color:#fff}
         .dsim .wc-msgs{flex:1;padding:20px;overflow-y:auto;display:flex;flex-direction:column;gap:15px}
         .dsim .msg{display:flex;gap:10px;max-width:80%}
         .dsim .msg.npc{align-self:flex-start} .dsim .msg.player{align-self:flex-end;flex-direction:row-reverse}
         .dsim .msg-bubble{padding:10px 15px;border-radius:12px;font-size:14px;line-height:1.5}
-        .dsim .msg.npc .msg-bubble{background:#fff;color:#333;border-top-left-radius:0}
+        .dsim .msg.npc .msg-bubble{background:rgba(60,60,60,.9);color:#fff;border-top-left-radius:0}
         .dsim .msg.player .msg-bubble{background:linear-gradient(135deg,#4A90E2,#6AB0F3);color:#fff;border-top-right-radius:0}
-        .dsim .wc-input-area{border-top:1px solid rgba(255,255,255,.4);display:flex;flex-direction:column;background:#fff}
-        .dsim .wc-toolbar{padding:10px 15px;display:flex;gap:15px;color:#666}
+        .dsim .wc-input-area{border-top:1px solid rgba(255,255,255,.1);display:flex;flex-direction:column;background:rgba(30,30,30,.95)}
+        .dsim .wc-toolbar{padding:10px 15px;display:flex;gap:15px;color:#888}
         .dsim .wc-toolbar i{cursor:pointer;font-size:20px;transition:all .3s} .dsim .wc-toolbar i:hover{color:#07C160}
-        .dsim .wc-inp{flex:1;padding:0 15px;border:none;resize:none;outline:none;font-size:14px;background:transparent;font-family:inherit}
+        .dsim .wc-inp{flex:1;padding:10px 15px;border:none;resize:none;outline:none;font-size:14px;background:transparent;font-family:inherit;color:#fff;min-height:60px}
+        .dsim .wc-inp::placeholder{color:#666}
         .dsim .wc-acts{padding:10px 15px;display:flex;justify-content:flex-end}
         .dsim .wc-send{padding:6px 20px;background:#07C160;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:14px;transition:all .3s}
         .dsim .wc-send:hover{background:#06ad56}
@@ -4155,6 +4206,35 @@ export class Game {
         .dsim .pay-btn{padding:4px 12px;color:#fff;border:none;border-radius:4px;font-size:12px;cursor:pointer;transition:all .2s}
         .dsim .pay-btn:disabled{opacity:.4;cursor:default}
         .dsim .pay-rent{background:#07c160} .dsim .pay-util{background:#409eff}
+
+        /* Public Account */
+        .dsim .wc-pa-list{display:none;flex-direction:column;height:calc(100% - 40px);background:rgba(18,18,18,.9)}
+        .dsim .wc-pa-list.active{display:flex}
+        .dsim .wc-pa-hdr{height:60px;padding:0 20px;display:flex;align-items:center;border-bottom:1px solid rgba(255,255,255,.1);color:#fff;font-size:18px;font-weight:bold}
+        .dsim .wc-pa-items{flex:1;overflow-y:auto;padding:15px;display:flex;flex-direction:column;gap:15px}
+        .dsim .wc-pa-item{background:rgba(255,255,255,.08);border-radius:12px;padding:15px;cursor:pointer;transition:all .3s;display:flex;gap:15px}
+        .dsim .wc-pa-item:hover{background:rgba(255,255,255,.15)}
+        .dsim .wc-pa-avatar{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:bold;font-size:20px;flex-shrink:0}
+        .dsim .wc-pa-info{flex:1;display:flex;flex-direction:column;gap:6px;min-width:0}
+        .dsim .wc-pa-name{font-size:16px;font-weight:bold;color:#fff}
+        .dsim .wc-pa-title{font-size:14px;color:#ccc;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+        .dsim .wc-pa-meta{display:flex;align-items:center;gap:10px;font-size:12px;color:#888}
+        .dsim .wc-pa-cover{width:80px;height:80px;border-radius:8px;object-fit:cover;flex-shrink:0;background:rgba(255,255,255,.1)}
+        .dsim .wc-pa-detail{display:none;flex-direction:column;width:100%;height:100%;background:#fff;position:absolute;top:0;left:0;z-index:100;border-radius:0 0 12px 12px}
+        .dsim .wc-pa-detail.active{display:flex}
+        .dsim .wc-pa-detail-hdr{height:50px;display:flex;align-items:center;justify-content:space-between;padding:0 15px;border-bottom:1px solid #eee;background:#fff}
+        .dsim .wc-pa-back{display:flex;align-items:center;gap:5px;cursor:pointer;color:#333;font-size:14px}
+        .dsim .wc-pa-edit-btn{padding:4px 12px;background:#07C160;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px}
+        .dsim .wc-pa-edit-btn:hover{background:#06ad56}
+        .dsim .wc-pa-detail-body{flex:1;overflow-y:auto;padding:20px 30px;background:#fff}
+        .dsim .wc-pa-detail-title{font-size:22px;font-weight:bold;color:#333;line-height:1.4;margin-bottom:10px}
+        .dsim .wc-pa-detail-meta{display:flex;align-items:center;gap:10px;font-size:14px;color:#888;margin-bottom:20px}
+        .dsim .wc-pa-detail-cover{width:100%;max-height:300px;object-fit:cover;border-radius:8px;margin-bottom:20px;background:#f0f0f0}
+        .dsim .wc-pa-detail-content{font-size:16px;line-height:1.8;color:#333;white-space:pre-wrap}
+        .dsim .wc-pa-edit-area{width:100%;min-height:300px;padding:15px;border:1px solid #ddd;border-radius:8px;font-size:16px;line-height:1.8;font-family:inherit;resize:vertical;outline:none}
+        .dsim .wc-pa-edit-actions{display:flex;gap:10px;margin-top:15px;justify-content:flex-end}
+        .dsim .wc-pa-save-btn{padding:6px 20px;background:#07C160;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:14px}
+        .dsim .wc-pa-cancel-btn{padding:6px 20px;background:#f0f0f0;color:#333;border:none;border-radius:4px;cursor:pointer;font-size:14px}
 
         /* Weibo */
         .dsim #wb-win{width:1000px;height:700px;top:60px;left:250px}
@@ -4249,14 +4329,14 @@ export class Game {
           <div class="wc-body">
             <div class="wc-side">
               <img src="portraits/happy.png" style="width:40px;height:40px;border-radius:8px;object-fit:cover;border:2px solid #fff">
-              <i class="ri-chat-3-line active"></i><i class="ri-contacts-line"></i><i class="ri-compass-3-line"></i>
+              <i class="ri-chat-3-line active" id="ds-wc-nav-chat"></i><i class="ri-contacts-line"></i><i class="ri-article-line" id="ds-wc-nav-pa" title="公众号"></i>
               <div style="flex:1"></div><i class="ri-settings-3-line"></i>
             </div>
             <div class="wc-list">
               <div class="wc-search"><input type="text" placeholder="搜索"></div>
               <div class="wc-contacts" id="ds-contacts"></div>
             </div>
-            <div class="wc-chat">
+            <div class="wc-chat" id="ds-wc-chat">
               <div class="wc-chat-hdr" id="ds-chat-hdr"><span class="hdr-name">选择联系人</span><div></div></div>
               <div class="wc-msgs" id="ds-msgs"></div>
               <div class="wc-input-area">
@@ -4264,6 +4344,19 @@ export class Game {
                 <textarea class="wc-inp" id="ds-wc-input" placeholder="输入消息..."></textarea>
                 <div class="wc-acts"><button class="wc-send" id="ds-wc-send">发送(S)</button></div>
               </div>
+            </div>
+            <!-- Public Account List (shown in chat area when selected from contacts) -->
+            <div class="wc-pa-list" id="ds-pa-list">
+              <div class="wc-pa-hdr">公众号</div>
+              <div class="wc-pa-items" id="ds-pa-items"></div>
+            </div>
+            <!-- Public Account Detail -->
+            <div class="wc-pa-detail" id="ds-pa-detail">
+              <div class="wc-pa-detail-hdr">
+                <div class="wc-pa-back" id="ds-pa-back"><i class="ri-arrow-left-line"></i> 返回</div>
+                <button class="wc-pa-edit-btn" id="ds-pa-edit">编辑</button>
+              </div>
+              <div class="wc-pa-detail-body" id="ds-pa-detail-body"></div>
             </div>
           </div>
         </div>
@@ -4399,7 +4492,17 @@ export class Game {
     const renderContacts = () => {
       const list = ov.querySelector('#ds-contacts') as HTMLElement;
       if (!list) return;
-      list.innerHTML = npcList.map(npc => {
+
+      // Get latest article for public account preview
+      const latestPa = publicAccounts[0];
+      const latestArticle = latestPa?.articles[0];
+
+      list.innerHTML = `
+        <div class="wc-ct ${activeChat === '__public_account__' ? 'active' : ''}" data-npc="__public_account__">
+          <div class="wc-avatar" style="background:#07C160"><i class="ri-article-line" style="color:#fff;font-size:20px"></i></div>
+          <div class="wc-ct-info"><div class="wc-ct-name">公众号</div><div class="wc-ct-msg">${latestArticle ? latestPa.name + ': ' + latestArticle.title : '查看订阅的公众号'}</div></div>
+        </div>
+      ` + npcList.map(npc => {
         const hist = chatHist[npc.id];
         const lastMsg = hist.length > 0 ? hist[hist.length - 1].content : npc.lastMsg;
         return `<div class="wc-ct ${npc.id === activeChat ? 'active' : ''}" data-npc="${npc.id}">
@@ -4409,9 +4512,15 @@ export class Game {
       }).join('');
       list.querySelectorAll('.wc-ct').forEach(ct => {
         ct.addEventListener('click', () => {
-          activeChat = (ct as HTMLElement).dataset.npc || npcKeys[0];
-          renderContacts();
-          renderChat();
+          const npcId = (ct as HTMLElement).dataset.npc || npcKeys[0];
+          if (npcId === '__public_account__') {
+            showPaViewFromContacts();
+          } else {
+            activeChat = npcId;
+            showChatView();
+            renderContacts();
+            renderChat();
+          }
         });
       });
     };
@@ -4501,6 +4610,152 @@ export class Game {
 
     renderContacts();
     renderChat();
+
+    // --- WeChat Public Account ---
+    const paListEl = ov.querySelector('#ds-pa-list') as HTMLElement;
+    const paChatEl = ov.querySelector('#ds-wc-chat') as HTMLElement;
+    const paContactsEl = ov.querySelector('.wc-list') as HTMLElement;
+    const paDetailEl = ov.querySelector('#ds-pa-detail') as HTMLElement;
+    const paNavChat = ov.querySelector('#ds-wc-nav-chat') as HTMLElement;
+    const paNavPa = ov.querySelector('#ds-wc-nav-pa') as HTMLElement;
+
+    // Navigation switching
+    const showChatView = () => {
+      paListEl?.classList.remove('active');
+      paDetailEl?.classList.remove('active');
+      if (paChatEl) paChatEl.style.display = 'flex';
+      if (paContactsEl) paContactsEl.style.display = 'flex';
+      paNavChat?.classList.add('active');
+      paNavPa?.classList.remove('active');
+      activeChat = activeChat === '__public_account__' ? npcKeys[0] : activeChat;
+    };
+
+    const showPaView = () => {
+      if (paChatEl) paChatEl.style.display = 'none';
+      if (paContactsEl) paContactsEl.style.display = 'none';
+      paDetailEl?.classList.remove('active');
+      paListEl?.classList.add('active');
+      paNavChat?.classList.remove('active');
+      paNavPa?.classList.add('active');
+      renderPaList();
+    };
+
+    // Show public account view from contacts list (keeps contacts visible)
+    const showPaViewFromContacts = () => {
+      if (paChatEl) paChatEl.style.display = 'none';
+      paDetailEl?.classList.remove('active');
+      paListEl?.classList.add('active');
+      activeChat = '__public_account__';
+      renderContacts();
+      renderPaList();
+    };
+
+    paNavChat?.addEventListener('click', showChatView);
+    paNavPa?.addEventListener('click', showPaView);
+
+    // Render public account list
+    const renderPaList = () => {
+      const container = ov.querySelector('#ds-pa-items') as HTMLElement;
+      if (!container) return;
+      container.innerHTML = publicAccounts.map(pa => {
+        const article = pa.articles[0];
+        return `
+          <div class="wc-pa-item" data-pa="${pa.id}" data-article="${article.id}">
+            <div class="wc-pa-avatar" style="background:${pa.color}">${pa.name[0]}</div>
+            <div class="wc-pa-info">
+              <div class="wc-pa-name">${pa.name}</div>
+              <div class="wc-pa-title">${article.title}</div>
+              <div class="wc-pa-meta"><span>${article.time}</span><span>余下 ${pa.articles.length} 篇 ></span></div>
+            </div>
+            <img class="wc-pa-cover" src="${article.cover}" alt="" onerror="this.style.display='none'">
+          </div>
+        `;
+      }).join('');
+
+      container.querySelectorAll('.wc-pa-item').forEach(item => {
+        item.addEventListener('click', () => {
+          const paId = (item as HTMLElement).dataset.pa || '';
+          const articleId = parseInt((item as HTMLElement).dataset.article || '0');
+          showPaDetail(paId, articleId);
+        });
+      });
+    };
+
+    // Show article detail
+    let currentEditingArticle: {paId: string; articleId: number} | null = null;
+
+    const showPaDetail = (paId: string, articleId: number) => {
+      const pa = publicAccounts.find(p => p.id === paId);
+      const article = pa?.articles.find(a => a.id === articleId);
+      if (!pa || !article) return;
+
+      paListEl?.classList.remove('active');
+      paDetailEl?.classList.add('active');
+      currentEditingArticle = {paId, articleId};
+
+      const body = ov.querySelector('#ds-pa-detail-body') as HTMLElement;
+      if (!body) return;
+      body.innerHTML = `
+        <div class="wc-pa-detail-title">${article.title}</div>
+        <div class="wc-pa-detail-meta">
+          <span style="color:#576b95">${pa.name}</span>
+          <span>${pa.name}</span>
+          <span>${article.date} ${article.time}</span>
+        </div>
+        <img class="wc-pa-detail-cover" src="${article.cover}" alt="" onerror="this.style.display='none'">
+        <div class="wc-pa-detail-content" id="ds-pa-content">${article.content}</div>
+      `;
+    };
+
+    // Back button
+    ov.querySelector('#ds-pa-back')?.addEventListener('click', () => {
+      paDetailEl?.classList.remove('active');
+      paListEl?.classList.add('active');
+      currentEditingArticle = null;
+    });
+
+    // Edit button
+    ov.querySelector('#ds-pa-edit')?.addEventListener('click', () => {
+      const editTarget = currentEditingArticle;
+      if (!editTarget) return;
+      const pa = publicAccounts.find(p => p.id === editTarget.paId);
+      const article = pa?.articles.find(a => a.id === editTarget.articleId);
+      if (!pa || !article) return;
+
+      const body = ov.querySelector('#ds-pa-detail-body') as HTMLElement;
+      const isEditing = body.querySelector('.wc-pa-edit-area') !== null;
+
+      if (!isEditing) {
+        // Enter edit mode
+        const currentContent = article.content;
+        body.innerHTML = `
+          <div class="wc-pa-detail-title">${article.title}</div>
+          <div class="wc-pa-detail-meta">
+            <span style="color:#576b95">${pa.name}</span>
+            <span>${pa.name}</span>
+            <span>${article.date} ${article.time}</span>
+          </div>
+          <img class="wc-pa-detail-cover" src="${article.cover}" alt="" onerror="this.style.display='none'">
+          <textarea class="wc-pa-edit-area" id="ds-pa-edit-area">${currentContent}</textarea>
+          <div class="wc-pa-edit-actions">
+            <button class="wc-pa-cancel-btn" id="ds-pa-cancel">取消</button>
+            <button class="wc-pa-save-btn" id="ds-pa-save">保存</button>
+          </div>
+        `;
+
+        ov.querySelector('#ds-pa-save')?.addEventListener('click', () => {
+          const newContent = (ov.querySelector('#ds-pa-edit-area') as HTMLTextAreaElement)?.value;
+          if (newContent !== undefined) {
+            article.content = newContent;
+          }
+          showPaDetail(editTarget.paId, editTarget.articleId);
+        });
+
+        ov.querySelector('#ds-pa-cancel')?.addEventListener('click', () => {
+          showPaDetail(editTarget.paId, editTarget.articleId);
+        });
+      }
+    });
 
     // --- Weibo ---
     const renderWbPosts = (containerId: string, posts = weiboPosts) => {
