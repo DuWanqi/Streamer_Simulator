@@ -2064,6 +2064,18 @@ export class Game {
             overflow: hidden;
             pointer-events: none;
           "></div>
+
+          <!-- 主播皮套（左下角） -->
+          <div id="vtuber-container" style="
+            position: absolute;
+            bottom: 0;
+            left: 5%;
+            width: 30%;
+            z-index: 15;
+            pointer-events: none;
+          ">
+            <img id="vtuber-sprite" src="vtuber/睁眼.png" style="width: 100%; height: auto; display: block;">
+          </div>
         </div>
 
         <!-- 右侧评论区 (像素测量: top:172 left:1304 326x652) -->
@@ -2200,7 +2212,11 @@ export class Game {
     // 显示事件弹窗
     const showEvent = (event: any) => {
       const impact = this.eventPool.calculateEventImpact(event, state);
-      
+
+      // 根据事件类型切换主播表情
+      if (event.type === 'big_spender') setExpression('happy', 3000);
+      else if (event.type === 'pk_battle') setExpression('focus', 0);
+
       let eventContent = '';
       if (event.type === 'big_spender') {
         const name = getBigSpenderName();
@@ -2366,13 +2382,56 @@ export class Game {
           } else {
             // 所有事件结束，自动结束直播
             setTimeout(() => {
-              clearInterval(danmakuInterval);
-              clearInterval(commentInterval);
+              cleanup();
               this.stateManager.changeScene('daily_summary');
             }, 2000);
           }
         }
       });
+    };
+
+    // 主播皮套表情系统
+    const vtuberSprite = element.querySelector('#vtuber-sprite') as HTMLImageElement;
+    const expressions = {
+      normal: 'vtuber/睁眼.png',
+      blink: 'vtuber/闭眼.png',
+      happy: 'vtuber/开心.png',
+      shy: 'vtuber/害羞.png',
+      focus: 'vtuber/认真.png',
+    } as const;
+    let currentExpression = 'normal';
+    let expressionTimer: number | null = null;
+
+    const setExpression = (name: keyof typeof expressions, durationMs: number = 0) => {
+      if (name === currentExpression) return;
+      currentExpression = name;
+      vtuberSprite.src = expressions[name];
+      if (expressionTimer !== null) clearTimeout(expressionTimer);
+      if (durationMs > 0) {
+        expressionTimer = window.setTimeout(() => {
+          currentExpression = 'normal';
+          vtuberSprite.src = expressions.normal;
+          expressionTimer = null;
+        }, durationMs);
+      }
+    };
+
+    // 眨眼定时器
+    const blink = () => {
+      if (currentExpression === 'normal') {
+        setExpression('blink');
+        setTimeout(() => {
+          if (currentExpression === 'blink') setExpression('normal');
+        }, 150);
+      }
+    };
+    const blinkInterval = window.setInterval(blink, 3500 + Math.random() * 2000);
+
+    const cleanup = () => {
+      clearInterval(danmakuInterval);
+      clearInterval(commentInterval);
+      clearInterval(blinkInterval);
+      if (expressionTimer !== null) clearTimeout(expressionTimer);
     };
 
     // 启动弹幕和评论
@@ -2391,16 +2450,14 @@ export class Game {
     } else {
       // 没有事件，5秒后自动结束直播
       setTimeout(() => {
-        clearInterval(danmakuInterval);
-        clearInterval(commentInterval);
+        cleanup();
         this.stateManager.changeScene('daily_summary');
       }, 5000);
     }
 
     // 手动结束直播按钮（可以提前结束）
     element.querySelector('#btn-end-stream')?.addEventListener('click', () => {
-      clearInterval(danmakuInterval);
-      clearInterval(commentInterval);
+      cleanup();
       this.stateManager.changeScene('daily_summary');
     });
   }

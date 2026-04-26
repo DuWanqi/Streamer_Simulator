@@ -8,7 +8,8 @@
       "Bash(npm list *)",
       "Bash(npm install *)",
       "Bash(node scripts/measure-png.mjs)",
-      "Bash(ln -s /d/projects/Streamer_Simulator/.agents/skills/measure-png-ui measure-png-ui)"
+      "Bash(ln -s /d/projects/Streamer_Simulator/.agents/skills/measure-png-ui measure-png-ui)",
+      "Bash(node *)"
     ]
   }
 }
